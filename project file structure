@@ -1,0 +1,32 @@
+house-unlimited/
+├── index.php                  → Public home / login
+├── dashboard/
+│   ├── index.php             → Main dashboard (role-based redirect)
+│   ├── properties.php
+│   ├── appointments.php
+│   ├── messages.php
+│   ├── documents.php
+│   ├── transactions.php
+│   └── profile.php
+├── admin/
+│   ├── index.php
+│   ├── users.php
+│   ├── properties.php
+│   ├── reports.php
+│   └── settings.php
+├── assets/
+│   ├── css/style.css
+│   ├── js/main.js
+│   ├── uploads/properties/
+│   └── uploads/documents/
+├── inc/
+│   ├── config.php            → DB + constants
+│   ├── auth.php              → Login/session/JWT-like session
+│   ├── functions.php         → Helpers
+│   └── header.php, footer.php
+├── api/
+│   └── *.php                 → AJAX endpoints
+├── login.php
+├── register.php
+├── logout.php
+└── .htaccess
