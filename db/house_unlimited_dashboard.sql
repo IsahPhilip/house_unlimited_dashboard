@@ -493,3 +493,38 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+-- =================================================
+-- SAMPLE DATA FOR `users` TABLE
+-- Perfect for House Unlimited Nigeria (2025)
+-- Includes: 1 Admin + 5 Agents + 15 Clients
+-- =================================================
+
+INSERT INTO users (name, email, phone, role, status, photo, bio, password, created_at) VALUES
+-- 1. ADMIN (You)
+('Isah Philip', 'admin@houseunlimited.ng', '+2348030000000', 'admin', 'active', 'isah.jpg', 'Founder & CEO – House Unlimited Nigeria', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-01-01 10:00:00'), -- password: password
+
+-- 2. TOP AGENTS
+('Chioma Okeke', 'chioma@houseunlimited.ng', '+2348123456789', 'agent', 'active', 'chioma.jpg', 'Lekki & Ikoyi Specialist | ₦5B+ in sales', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-06-15'),
+('Ahmed Yusuf', 'ahmed.yusuf@houseunlimited.ng', '+2349065432109', 'agent', 'active', 'ahmed.jpg', 'Abuja Luxury Expert | Maitama & Asokoro', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-07-20'),
+('Victor Okafor', 'victor@houseunlimited.ng', '+2349081122334', 'agent', 'active', 'victor.jpg', 'Port Harcourt & Oil Money Properties', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-11-01'),
+('Grace Adeyemi', 'grace@houseunlimited.ng', '+2347012345678', 'agent', 'active', 'grace.jpg', 'Banana Island & Victoria Island Queen', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2025-01-10'),
+('Tunde Lawal', 'tunde@houseunlimited.ng', '+2348155558899', 'agent', 'active', 'tunde.jpg', 'Epe & Ibeju-Lekki Land Expert', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2025-02-05'),
+
+-- 3. PREMIUM CLIENTS (High Net Worth)
+('Dr. Fatima Bello', 'fatima.bello@gmail.com', '+2348135557799', 'client', 'active', 'fatima.jpg', 'Cash buyer | Looking for ₦1B+ mansion in Abuja', NULL, '2025-09-05'),
+('Engr. Emeka Nwosu', 'emeka.nwosu@shell.com', '+2348147778899', 'client', 'active', 'emeka.jpg', 'Oil exec | Wants waterfront in PH', NULL, '2025-10-01'),
+('Mrs. Sandra Eze', 'sandra.eze@gtbank.com', '+2347056789123', 'client', 'active', 'sandra.jpg', 'Banker | Investor in Lekki Phase 1', NULL, '2025-10-20'),
+('Chief Tolu Adebayo', 'tolu.adebayo@yahoo.com', '+2347012345678', 'client', 'active', 'tolu.jpg', 'Politician | Needs 10-bedroom in Ikoyi', NULL, '2025-08-10'),
+('Mr. David Okocha', 'david.okocha@nnpc.gov.ng', '+2349098765432', 'client', 'active', 'david.jpg', 'NNPC Director | Abuja mansion', NULL, '2025-11-01'),
+
+-- 4. REGULAR CLIENTS
+('Aisha Mohammed', 'aisha.m@gmail.com', '+2348101234567', 'client', 'active', 'default.png', 'First-time buyer | Budget ₦80M', NULL, '2025-11-10'),
+('Kemi Adewale', 'kemi.adewale@hotmail.com', '+2347087654321', 'client', 'active', 'default.png', 'Looking for 3-bed in Ajah', NULL, '2025-11-12'),
+('Chinedu Okonkwo', 'chinedu.ok@gmail.com', '+2348165432109', 'client', 'active', 'default.png', 'Land in Epe | ₦15M budget', NULL, '2025-11-13'),
+('Bola Yusuf', 'bola.yusuf@outlook.com', '+2349034567890', 'client', 'active', 'default.png', 'Renting in VI | ₦20M/year', NULL, '2025-11-14'),
+('Funmi Alabi', 'funmi.alabi@gmail.com', '+2348112233445', 'client', 'active', 'default.png', 'Student | Studio in Yaba', NULL, '2025-11-15'),
+('Ibrahim Sani', 'ibrahim.sani@yahoo.com', '+2348141122334', 'client', 'active', 'default.png', 'Duplex in Gwarinpa, Abuja', NULL, '2025-11-16'),
+('Peace John', 'peace.john@gmail.com', '+2348078899001', 'client', 'active', 'default.png', 'Family home in Ikeja GRA', NULL, '2025-11-17'),
+('Samuel Obi', 'samuel.obi@accessbank.com', '+2348129988776', 'client', 'active', 'default.png', '4-bed terrace in Lekki', NULL, '2025-11-17'),
+('Zainab Usman', 'zainab.usman@gmail.com', '+2348098877665', 'client', 'active', 'default.png', 'Apartment in Surulere', NULL, '2025-11-18');
