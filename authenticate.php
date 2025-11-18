@@ -1,16 +1,11 @@
 <?php
-// authenticate.php 
 ob_start();
-
 require 'inc/config.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+require 'inc/send_email.php';
 
 if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/codes/house_unlimited_dashboard');
 }
-
 // =======================
 // 1. MAGIC LINK REQUEST
 // =======================
@@ -32,39 +27,23 @@ if (isset($_POST['magic_login'])) {
 
         $magic_link = BASE_URL . "/authenticate.php?token=" . $token;
 
-        // === SEND EMAIL (PHPMailer) ===
-        $mail = new PHPMailer(true);
-        try {
-            // Server settings from config.php
-            $mail->isSMTP();
-            $mail->Host       = SMTP_HOST;
-            $mail->SMTPAuth   = true;
-            $mail->Username   = SMTP_USER;
-            $mail->Password   = SMTP_PASS;
-            $mail->SMTPSecure = SMTP_SECURE;
-            $mail->Port       = SMTP_PORT;
+        // === SEND EMAIL (Resend) ===
+        $subject = 'Your Magic Login Link';
+        $body = "
+            <h2>Welcome back, {$user['name']}!</h2>
+            <p>Click below to log in instantly:</p>
+            <p><a href='$magic_link' style='padding:15px 30px; background:#1e40af; color:white; text-decoration:none; border-radius:8px; font-weight:bold;'>Login to Dashboard</a></p>
+            <p>Or copy: <code>$magic_link</code></p>
+            <p><small>Link expires in 15 minutes.</small></p>
+        ";
 
-            $mail->setFrom(COMPANY_EMAIL, SITE_NAME);
-            $mail->addAddress($email, $user['name']);
-
-            $mail->isHTML(true);
-            $mail->Subject = 'Your Magic Login Link';
-            $mail->Body    = "
-                <h2>Welcome back, {$user['name']}!</h2>
-                <p>Click below to log in instantly:</p>
-                <p><a href='$magic_link' style='padding:15px 30px; background:#1e40af; color:white; text-decoration:none; border-radius:8px; font-weight:bold;'>Login to Dashboard</a></p>
-                <p>Or copy: <code>$magic_link</code></p>
-                <p><small>Link expires in 15 minutes.</small></p>
-            ";
-            $mail->AltBody = "Login here: $magic_link";
-
-            $mail->send();
+        if (send_email($email, $subject, $body)) {
             header('Location: login.php?success=1&email=' . urlencode($email));
             exit;
-        } catch (Exception $e) {
+        } else {
             // Production-ready error handling
             // Log the detailed error for the admin to see, but show a generic message to the user.
-            error_log("PHPMailer Error: " . $mail->ErrorInfo);
+            error_log("Resend Error: Could not send email.");
             header('Location: login.php?error=' . urlencode('Could not send login link. Please contact support.') . '&email=' . urlencode($email));
             exit;
         }
