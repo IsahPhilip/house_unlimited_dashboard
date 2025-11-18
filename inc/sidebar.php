@@ -24,9 +24,13 @@ $user = $_SESSION['user'];
                 </a>
             </li>
             <li>
-                <a href="properties.php" class="<?= in_array(basename($_SERVER['PHP_SELF']), ['properties.php', 'property_detail.php', 'add_property.php']) ? 'active' : '' ?>">
-                    Properties
-                </a>
+                <a href="properties.php" class="<?= in_array(basename($_SERVER['PHP_SELF']), ['properties.php', 'property_detail.php']) ? 'active' : '' ?>">
+                     Properties
+                 </a>
+                <ul class="sub-menu">
+                    <li><a href="properties.php" class="<?= basename($_SERVER['PHP_SELF']) === 'properties.php' ? 'active' : '' ?>">All Properties</a></li>
+                    <li><a href="add_property.php" class="<?= basename($_SERVER['PHP_SELF']) === 'add_property.php' ? 'active' : '' ?>">Add New</a></li>
+                </ul>
             </li>
             <li>
                 <a href="appointments.php" class="<?= basename($_SERVER['PHP_SELF']) === 'appointments.php' ? 'active' : '' ?>">

@@ -1,50 +1,41 @@
 <?php
-// inc/send_email.php - Now using Mailtrap
+// inc/send_email.php - 100% WORKING WITH MAILTRAP ONLY
 
-use Mailtrap\Config;
-use Mailtrap\Email;
-use Mailtrap\MailtrapClient;
-use Symfony\Component\Mime\Address;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+// Only load PHPMailer if not already loaded
+if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
 
 function send_email($to, $subject, $html, $text = null) {
-    $apiKey = $_ENV['MAILTRAP_API_KEY'] ?? null;
-    $inboxId = $_ENV['MAILTRAP_INBOX_ID'] ?? null;
-    $senderEmail = $_ENV['MAILTRAP_SENDER_EMAIL'] ?? null;
-    $senderName = 'House Unlimited Nigeria'; // Or get from .env if you want
-
-    if (!$apiKey || !$inboxId || !$senderEmail) {
-        error_log("Mailtrap API key, Inbox ID, or Sender Email is missing in .env file.");
-        return false;
-    }
+    $mail = new PHPMailer(true);
 
     try {
-        $config = new Config($apiKey);
-        $mailtrap = new MailtrapClient($config);
+        // Mailtrap SMTP Settings
+        $mail->isSMTP();
+        $mail->Host       = $_ENV['MAILTRAP_HOST'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $_ENV['MAILTRAP_USERNAME'];
+        $mail->Password   = $_ENV['MAILTRAP_PASSWORD'];
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = $_ENV['MAILTRAP_PORT'];
 
-        $email = (new Email())
-            ->from(new Address($senderEmail, $senderName))
-            ->to(new Address($to))
-            ->subject($subject)
-            ->html($html);
-        
-        if ($text) {
-            $email->text($text);
-        }
+        // Sender & Recipient
+        $mail->setFrom($_ENV['MAILTRAP_FROM_EMAIL'], $_ENV['MAILTRAP_FROM_NAME']);
+        $mail->addAddress($to);
 
-        $response = $mailtrap->sending()->emails()->send($email);
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body    = $html;
+        $mail->AltBody = $text ?? strip_tags($html);
 
-        // Check if the email was sent successfully
-        if ($response->isSuccess()) {
-            return true;
-        } else {
-            // Log the error from Mailtrap's response
-            $errorBody = $response->getBody();
-            error_log('Mailtrap Error: ' . json_encode($errorBody));
-            return false;
-        }
-
+        $mail->send();
+        return true;
     } catch (Exception $e) {
-        error_log('Mailtrap Exception: ' . $e->getMessage());
+        error_log("Mailtrap Error: {$mail->ErrorInfo}");
         return false;
     }
 }
