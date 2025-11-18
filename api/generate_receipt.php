@@ -4,22 +4,20 @@ require '../inc/config.php';
 require '../inc/auth.php';
 require '../vendor/autoload.php'; // TCPDF or FPDF
 
-use TCPDF;
-
 $id = intval($_GET['id'] ?? 0);
 $ref = $_GET['ref'] ?? '';
 
 if ($id > 0) {
     $stmt = $db->prepare("SELECT t.*, u.name, u.email, p.title as property 
                           FROM transactions t 
-                          JOIN users u ON t.user_id = u.id 
+                          LEFT JOIN users u ON t.user_id = u.id 
                           LEFT JOIN properties p ON t.property_id = p.id 
                           WHERE t.id = ? AND t.user_id = ?");
     $stmt->bind_param('ii', $id, $_SESSION['user']['id']);
 } else {
     $stmt = $db->prepare("SELECT t.*, u.name, u.email, p.title as property 
                           FROM transactions t 
-                          JOIN users u ON t.user_id = u.id 
+                          LEFT JOIN users u ON t.user_id = u.id 
                           LEFT JOIN properties p ON t.property_id = p.id 
                           WHERE t.payment_ref = ?");
     $stmt->bind_param('s', $ref);
@@ -30,7 +28,6 @@ $txn = $result->fetch_assoc();
 
 if (!$txn) die('Transaction not found');
 
-$pdf = new TCPDF();
 $pdf->SetCreator('House Unlimited');
 $pdf->SetAuthor('House Unlimited & Land Services');
 $pdf->SetTitle('Payment Receipt - ' . $txn['payment_ref']);

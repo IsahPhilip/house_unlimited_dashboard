@@ -9,10 +9,7 @@ $dotenv->required([
     'DB_HOST', 
     'DB_USER', 
     'DB_NAME', 
-    'BASE_URL',
-    'MAILTRAP_HOST', 
-    'MAILTRAP_USERNAME', 
-    'MAILTRAP_PASSWORD'
+    'BASE_URL'
 ]);
 
 // Database
@@ -21,7 +18,6 @@ if ($db->connect_error) die("DB Error: " . $db->connect_error);
 $db->set_charset('utf8mb4');
 
 require_once __DIR__ . '/functions.php';
-// DO NOT include send_email.php here
 
 date_default_timezone_set('Africa/Lagos');
 

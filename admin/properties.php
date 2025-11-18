@@ -1,5 +1,5 @@
 <?php
-// admin/properties.php - Full Admin Property Management
+// admin/properties.php - FULLY FIXED & BEAUTIFUL
 require '../inc/config.php';
 require '../inc/auth.php';
 
@@ -8,50 +8,44 @@ if ($_SESSION['user']['role'] !== 'admin') {
     exit;
 }
 
-// Handle status update (approve, reject, delete)
-if (isset($_POST['action']) && isset($_POST['property_id'])) {
-    $id = intval($_POST['property_id']);
+// Handle actions: approve, reject, delete
+if ($_POST['action'] ?? '' && $_POST['property_id'] ?? 0) {
+    $id = (int)$_POST['property_id'];
     $action = $_POST['action'];
 
-    if ($action === 'approve') {
-        $stmt = $db->prepare("UPDATE properties SET status = 'active' WHERE id = ?");
-    } elseif ($action === 'reject') {
-        $stmt = $db->prepare("UPDATE properties SET status = 'rejected' WHERE id = ?");
-    } elseif ($action === 'delete') {
-        // Soft delete or hard delete
-        $stmt = $db->prepare("DELETE FROM properties WHERE id = ?");
+    if (in_array($action, ['approve', 'reject', 'delete'])) {
+        if ($action === 'delete') {
+            $db->query("DELETE FROM property_images WHERE property_id = $id");
+            $db->query("DELETE FROM properties WHERE id = $id");
+        } else {
+            $status = $action === 'approve' ? 'active' : 'rejected';
+            $db->query("UPDATE properties SET status = '$status' WHERE id = $id");
+        }
+        log_activity("Admin $action" . "d property ID #$id");
+        header('Location: properties.php?success=1');
+        exit;
     }
-    $stmt->bind_param('i', $id);
-    $stmt->execute();
-
-    if ($action === 'delete') {
-        // Also delete images
-        $db->query("DELETE FROM property_images WHERE property_id = $id");
-    }
-
-    log_activity("Admin " . ucfirst($action) . "d property ID #$id");
-    header('Location: properties.php?success=1');
-    exit;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin • All Properties • House Unlimited</title>
-    <link rel="stylesheet" href="../assets/css/style.css" />
+    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         .admin-header {
             background: linear-gradient(135deg, #1e40af, #1e3a8a);
             color: white;
-            padding: 2rem;
+            padding: 2.5rem;
             border-radius: 20px;
             margin-bottom: 2.5rem;
             text-align: center;
         }
-        .admin-header h1 { margin: 0 0 0.5rem; font-size: 2.6rem; }
-        .admin-header p { margin: 0; opacity: 0.9; }
+        .admin-header h1 { margin: 0 0 0.5rem; font-size: 2.8rem; font-weight: 800; }
+        .admin-header p { margin: 0; opacity: 0.9; font-size: 1.2rem; }
 
         .filters {
             background: white;
@@ -73,28 +67,31 @@ if (isset($_POST['action']) && isset($_POST['property_id'])) {
         }
         body.dark .table-container { background: #1e1e1e; }
 
-        .table th {
+        table { width: 100%; border-collapse: collapse; }
+        th {
             background: #f8f9fc;
-            padding: 1.2rem 1rem;
+            padding: 1.3rem 1rem;
             font-weight: 600;
             color: #475569;
             text-transform: uppercase;
             font-size: 0.9rem;
+            text-align: left;
         }
-        body.dark .table th { background: #334155; color: #cbd5e1; }
+        body.dark th { background: #334155; color: #cbd5e1; }
 
-        .table td {
+        td {
             padding: 1.2rem 1rem;
             vertical-align: middle;
             border-bottom: 1px solid #f1f5f9;
         }
-        body.dark .table td { border-color: #334155; }
+        body.dark td { border-color: #334155; }
 
         .property-thumb {
             width: 70px;
             height: 70px;
             object-fit: cover;
-            border-radius: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
         .status {
@@ -102,32 +99,39 @@ if (isset($_POST['action']) && isset($_POST['property_id'])) {
             border-radius: 50px;
             font-size: 0.85rem;
             font-weight: 600;
+            text-transform: uppercase;
         }
         .status.active { background: #d1fae5; color: #065f46; }
         .status.pending { background: #fef3c7; color: #92400e; }
         .status.rejected { background: #fee2e2; color: #991b1b; }
+        .status.sale { background: #dbeafe; color: #1e40af; }
+        .status.rent { background: #f0fdfa; color: #0d9488; }
 
         .action-btn {
-            padding: 0.5rem 1rem;
+            padding: 0.6rem 1rem;
             margin: 0 0.3rem;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
         }
+        .btn-view { background: #3b82f6; color: white; }
         .btn-approve { background: #10b981; color: white; }
         .btn-reject { background: #f59e0b; color: white; }
         .btn-delete { background: #ef4444; color: white; }
-        .btn-view { background: #3b82f6; color: white; }
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
 
         .no-properties {
             text-align: center;
-            padding: 4rem 2rem;
+            padding: 5rem 2rem;
             color: #64748b;
+            font-size: 1.3rem;
         }
     </style>
 </head>
-<body class="dark">
+<body>
     <?php include '../inc/header.php'; ?>
 
     <div class="container">
@@ -136,16 +140,15 @@ if (isset($_POST['action']) && isset($_POST['property_id'])) {
         <main class="main-content">
             <div class="admin-header">
                 <h1>All Properties</h1>
-                <p>Manage listings across Lagos, Abuja, PH & beyond</p>
+                <p>Full control over every listing in House Unlimited Nigeria</p>
             </div>
 
             <?php if (isset($_GET['success'])): ?>
-                <div style="background:#d1fae5; color:#065f46; padding:1rem; border-radius:12px; margin-bottom:1.5rem;">
+                <div style="background:#d1fae5; color:#065f46; padding:1.2rem; border-radius:12px; margin-bottom:1.5rem; text-align:center; font-weight:600;">
                     Property action completed successfully!
                 </div>
             <?php endif; ?>
 
-            <!-- Filters -->
             <div class="filters">
                 <input type="text" id="search" placeholder="Search title, location, agent..." oninput="filterTable()" />
                 <select id="statusFilter" onchange="filterTable()">
@@ -161,9 +164,8 @@ if (isset($_POST['action']) && isset($_POST['property_id'])) {
                 </select>
             </div>
 
-            <!-- Properties Table -->
             <div class="table-container">
-                <table class="table" id="propertiesTable">
+                <table id="propertiesTable">
                     <thead>
                         <tr>
                             <th>Image</th>
@@ -178,7 +180,7 @@ if (isset($_POST['action']) && isset($_POST['property_id'])) {
                         </tr>
                     </thead>
                     <tbody id="propertiesBody">
-                        <!-- Loaded via JS -->
+                        <tr><td colspan="9" class="no-properties">Loading properties...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -187,47 +189,53 @@ if (isset($_POST['action']) && isset($_POST['property_id'])) {
 
     <script>
         async function loadProperties() {
-            const res = await fetch('../api/admin_properties.php');
-            const properties = await res.json();
+            try {
+                const res = await fetch('../api/admin_properties.php');
+                if (!res.ok) throw new Error('Failed to load');
+                const properties = await res.json();
 
-            const tbody = document.getElementById('propertiesBody');
-            if (properties.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="no-properties">No properties found in the system.</td></tr>`;
-                return;
-            }
+                const tbody = document.getElementById('propertiesBody');
+                if (!Array.isArray(properties) || properties.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="no-properties">No properties found.</td></tr>`;
+                    return;
+                }
 
-            let html = '';
-            properties.forEach(p => {
-                const date = new Date(p.created_at).toLocaleDateString('en-NG', {
-                    day: 'numeric', month: 'short', year: 'numeric'
+                let html = '';
+                properties.forEach(p => {
+                    const date = new Date(p.created_at).toLocaleDateString('en-NG', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                    });
+
+                    html += `
+                    <tr data-status="${p.status}" data-type="${p.type}">
+                        <td><img src="../assets/uploads/properties/${p.featured_image}" class="property-thumb" alt="${p.title}"></td>
+                        <td><strong>${p.title}</strong></td>
+                        <td>${p.location}</td>
+                        <td><strong>₦${Number(p.price).toLocaleString()}</strong></td>
+                        <td>${p.agent_name || '—'}</td>
+                        <td><span class="status ${p.type}">${p.type === 'sale' ? 'FOR SALE' : 'FOR RENT'}</span></td>
+                        <td><span class="status ${p.status}">${p.status.toUpperCase()}</span></td>
+                        <td>${date}</td>
+                        <td>
+                            <a href="../dashboard/property_detail.php?id=${p.id}" target="_blank" class="action-btn btn-view">View</a>
+                            ${p.status === 'pending' ? `
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="property_id" value="${p.id}">
+                                <button type="submit" name="action" value="approve" class="action-btn btn-approve">Approve</button>
+                                <button type="submit" name="action" value="reject" class="action-btn btn-reject">Reject</button>
+                            </form>` : ''}
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this property?')">
+                                <input type="hidden" name="property_id" value="${p.id}">
+                                <button type="submit" name="action" value="delete" class="action-btn btn-delete">Delete</button>
+                            </form>
+                        </td>
+                    </tr>`;
                 });
-
-                html += `
-                <tr data-status="${p.status}" data-type="${p.type}">
-                    <td><img src="../assets/uploads/properties/${p.featured_image || 'default.jpg'}" class="property-thumb" alt="${p.title}"></td>
-                    <td><strong>${p.title}</strong></td>
-                    <td>${p.location}</td>
-                    <td><strong>₦${Number(p.price).toLocaleString()}</strong></td>
-                    <td>${p.agent_name || 'Unknown'}</td>
-                    <td><span class="status ${p.type}">${p.type.toUpperCase()}</span></td>
-                    <td><span class="status ${p.status}">${p.status.toUpperCase()}</span></td>
-                    <td>${date}</td>
-                    <td>
-                        <a href="../dashboard/property_detail.php?id=${p.id}" class="action-btn btn-view" target="_blank">View</a>
-                        ${p.status === 'pending' ? `
-                        <form method="POST" style="display:inline;">
-                            <input type="hidden" name="property_id" value="${p.id}">
-                            <button type="submit" name="action" value="approve" class="action-btn btn-approve">Approve</button>
-                            <button type="submit" name="action" value="reject" class="action-btn btn-reject">Reject</button>
-                        </form>` : ''}
-                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this property permanently?')">
-                            <input type="hidden" name="property_id" value="${p.id}">
-                            <button type="submit" name="action" value="delete" class="action-btn btn-delete">Delete</button>
-                        </form>
-                    </td>
-                </tr>`;
-            });
-            tbody.innerHTML = html;
+                tbody.innerHTML = html;
+            } catch (err) {
+                document.getElementById('propertiesBody').innerHTML = 
+                    `<tr><td colspan="9" class="no-properties">Error loading properties. Please refresh.</td></tr>`;
+            }
         }
 
         function filterTable() {
@@ -240,17 +248,18 @@ if (isset($_POST['action']) && isset($_POST['property_id'])) {
                 const rowStatus = row.dataset.status;
                 const rowType = row.dataset.type;
 
-                const matchesSearch = text.includes(search);
-                const matchesStatus = !status || rowStatus === status;
-                const matchesType = !type || rowType === type;
+                const matches = 
+                    text.includes(search) &&
+                    (!status || rowStatus === status) &&
+                    (!type || rowType === type);
 
-                row.style.display = (matchesSearch && matchesStatus && matchesType) ? '' : 'none';
+                row.style.display = matches ? '' : 'none';
             });
         }
 
-        // Initial load
+        // Load on start + refresh every 60 seconds
         loadProperties();
-        setInterval(loadProperties, 60000); // Refresh every minute
+        setInterval(loadProperties, 60000);
     </script>
 </body>
 </html>
