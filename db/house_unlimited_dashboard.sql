@@ -274,18 +274,34 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `name`, `email`, `phone`, `password`, `role`, `status`, `photo`, `bio`, `magic_token`, `token_expires`, `created_at`, `updated_at`) VALUES
-(1, 'Skyler Crypt', 'admin@houseunlimited.ng', NULL, '$2y$10$gL3g.zB9J.p7vR8/uK3qUeJ5iG9yO7wX6sC4lR2tE1oF0bI8nS9mC', 'admin', 'active', 'default.png', NULL, NULL, NULL, '2025-11-17 20:36:58', '2025-11-17 22:36:46'),
-(10, 'Julia Abege', 'julia@houseunlimited.ng', '+2348030000000', NULL, 'admin', 'active', 'julia.jpg', 'Founder & CEO – Building the future of Nigerian real estate', NULL, NULL, '2024-01-01 10:00:00', '2025-11-17 20:41:15'),
-(11, 'Chioma Okeke', 'chioma@houseunlimited.ng', '+2348123456789', NULL, 'agent', 'active', 'chioma.jpg', 'Top agent in Lekki Phase 1 | 50+ properties sold', NULL, NULL, '2024-06-15 00:00:00', '2025-11-17 20:41:15'),
-(12, 'Ahmed Yusuf', 'ahmed.yusuf@gmail.com', '+2349065432109', NULL, 'agent', 'active', 'ahmed.jpg', 'Abuja specialist | Luxury & Diplomatic Quarters', NULL, NULL, '2024-07-20 00:00:00', '2025-11-17 20:41:15'),
-(13, 'Tolu Adebayo', 'tolu.adebayo@yahoo.com', '+2347012345678', NULL, 'client', 'active', 'tolu.jpg', 'Looking for 5-bedroom duplex in Ikoyi', NULL, NULL, '2025-08-10 00:00:00', '2025-11-17 20:41:15'),
-(14, 'Fatima Bello', 'fatima.bello@gmail.com', '+2348135557799', NULL, 'client', 'active', 'fatima.jpg', 'First-time buyer | Budget ₦120m', NULL, NULL, '2025-09-05 00:00:00', '2025-11-17 20:41:15'),
-(15, 'Victor Okafor', 'victorokafor@outlook.com', '+2349081122334', NULL, 'agent', 'active', 'victor.jpg', 'Port Harcourt expert | Oil & Gas executives', NULL, NULL, '2024-11-01 00:00:00', '2025-11-17 20:41:15'),
-(16, 'Sandra Eze', 'sandra.eze@gmail.com', '+2347056789123', NULL, 'client', 'active', 'sandra.jpg', 'Investor | Cash buyer in Lagos', NULL, NULL, '2025-10-20 00:00:00', '2025-11-17 20:41:15'),
-(17, 'Emeka Nwosu', 'emeka.nwosu@hotmail.com', '+2348147778899', NULL, 'client', 'active', 'emeka.jpg', 'Looking for land in Epe', NULL, NULL, '2025-11-01 00:00:00', '2025-11-17 20:41:15'),
-(34, 'Isah Philip', 'philipisah30@gmail.com', '+2349013643677', NULL, 'client', 'active', 'default.png', NULL, NULL, NULL, '2025-11-17 22:38:06', '2025-11-17 23:28:04');
+INSERT INTO users (name, email, phone, role, status, photo, bio, password, created_at) VALUES
+-- 1. ADMIN (You)
+('Isah Philip', 'admin@houseunlimited.ng', '+2348030000000', 'admin', 'active', 'isah.jpg', 'Founder & CEO – House Unlimited Nigeria', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-01-01 10:00:00'), -- password: password
 
+-- 2. TOP AGENTS
+('Chioma Okeke', 'chioma@houseunlimited.ng', '+2348123456789', 'agent', 'active', 'chioma.jpg', 'Lekki & Ikoyi Specialist | ₦5B+ in sales', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-06-15'),
+('Ahmed Yusuf', 'ahmed.yusuf@houseunlimited.ng', '+2349065432109', 'agent', 'active', 'ahmed.jpg', 'Abuja Luxury Expert | Maitama & Asokoro', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-07-20'),
+('Victor Okafor', 'victor@houseunlimited.ng', '+2349081122334', 'agent', 'active', 'victor.jpg', 'Port Harcourt & Oil Money Properties', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-11-01'),
+('Grace Adeyemi', 'grace@houseunlimited.ng', '+2347012345678', 'agent', 'active', 'grace.jpg', 'Banana Island & Victoria Island Queen', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2025-01-10'),
+('Tunde Lawal', 'tunde@houseunlimited.ng', '+2348155558899', 'agent', 'active', 'tunde.jpg', 'Epe & Ibeju-Lekki Land Expert', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2025-02-05'),
+
+-- 3. PREMIUM CLIENTS (High Net Worth)
+('Dr. Fatima Bello', 'fatima.bello@gmail.com', '+2348135557799', 'client', 'active', 'fatima.jpg', 'Cash buyer | Looking for ₦1B+ mansion in Abuja', NULL, '2025-09-05'),
+('Engr. Emeka Nwosu', 'emeka.nwosu@shell.com', '+2348147778899', 'client', 'active', 'emeka.jpg', 'Oil exec | Wants waterfront in PH', NULL, '2025-10-01'),
+('Mrs. Sandra Eze', 'sandra.eze@gtbank.com', '+2347056789123', 'client', 'active', 'sandra.jpg', 'Banker | Investor in Lekki Phase 1', NULL, '2025-10-20'),
+('Chief Tolu Adebayo', 'tolu.adebayo@yahoo.com', '+2347012345678', 'client', 'active', 'tolu.jpg', 'Politician | Needs 10-bedroom in Ikoyi', NULL, '2025-08-10'),
+('Mr. David Okocha', 'david.okocha@nnpc.gov.ng', '+2349098765432', 'client', 'active', 'david.jpg', 'NNPC Director | Abuja mansion', NULL, '2025-11-01'),
+
+-- 4. REGULAR CLIENTS
+('Aisha Mohammed', 'aisha.m@gmail.com', '+2348101234567', 'client', 'active', 'default.png', 'First-time buyer | Budget ₦80M', NULL, '2025-11-10'),
+('Kemi Adewale', 'kemi.adewale@hotmail.com', '+2347087654321', 'client', 'active', 'default.png', 'Looking for 3-bed in Ajah', NULL, '2025-11-12'),
+('Chinedu Okonkwo', 'chinedu.ok@gmail.com', '+2348165432109', 'client', 'active', 'default.png', 'Land in Epe | ₦15M budget', NULL, '2025-11-13'),
+('Bola Yusuf', 'bola.yusuf@outlook.com', '+2349034567890', 'client', 'active', 'default.png', 'Renting in VI | ₦20M/year', NULL, '2025-11-14'),
+('Funmi Alabi', 'funmi.alabi@gmail.com', '+2348112233445', 'client', 'active', 'default.png', 'Student | Studio in Yaba', NULL, '2025-11-15'),
+('Ibrahim Sani', 'ibrahim.sani@yahoo.com', '+2348141122334', 'client', 'active', 'default.png', 'Duplex in Gwarinpa, Abuja', NULL, '2025-11-16'),
+('Peace John', 'peace.john@gmail.com', '+2348078899001', 'client', 'active', 'default.png', 'Family home in Ikeja GRA', NULL, '2025-11-17'),
+('Samuel Obi', 'samuel.obi@accessbank.com', '+2348129988776', 'client', 'active', 'default.png', '4-bed terrace in Lekki', NULL, '2025-11-17'),
+('Zainab Usman', 'zainab.usman@gmail.com', '+2348098877665', 'client', 'active', 'default.png', 'Apartment in Surulere', NULL, '2025-11-18');
 --
 -- Indexes for dumped tables
 --
@@ -499,32 +515,3 @@ COMMIT;
 -- Perfect for House Unlimited Nigeria (2025)
 -- Includes: 1 Admin + 5 Agents + 15 Clients
 -- =================================================
-
-INSERT INTO users (name, email, phone, role, status, photo, bio, password, created_at) VALUES
--- 1. ADMIN (You)
-('Isah Philip', 'admin@houseunlimited.ng', '+2348030000000', 'admin', 'active', 'isah.jpg', 'Founder & CEO – House Unlimited Nigeria', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-01-01 10:00:00'), -- password: password
-
--- 2. TOP AGENTS
-('Chioma Okeke', 'chioma@houseunlimited.ng', '+2348123456789', 'agent', 'active', 'chioma.jpg', 'Lekki & Ikoyi Specialist | ₦5B+ in sales', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-06-15'),
-('Ahmed Yusuf', 'ahmed.yusuf@houseunlimited.ng', '+2349065432109', 'agent', 'active', 'ahmed.jpg', 'Abuja Luxury Expert | Maitama & Asokoro', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-07-20'),
-('Victor Okafor', 'victor@houseunlimited.ng', '+2349081122334', 'agent', 'active', 'victor.jpg', 'Port Harcourt & Oil Money Properties', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2024-11-01'),
-('Grace Adeyemi', 'grace@houseunlimited.ng', '+2347012345678', 'agent', 'active', 'grace.jpg', 'Banana Island & Victoria Island Queen', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2025-01-10'),
-('Tunde Lawal', 'tunde@houseunlimited.ng', '+2348155558899', 'agent', 'active', 'tunde.jpg', 'Epe & Ibeju-Lekki Land Expert', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2025-02-05'),
-
--- 3. PREMIUM CLIENTS (High Net Worth)
-('Dr. Fatima Bello', 'fatima.bello@gmail.com', '+2348135557799', 'client', 'active', 'fatima.jpg', 'Cash buyer | Looking for ₦1B+ mansion in Abuja', NULL, '2025-09-05'),
-('Engr. Emeka Nwosu', 'emeka.nwosu@shell.com', '+2348147778899', 'client', 'active', 'emeka.jpg', 'Oil exec | Wants waterfront in PH', NULL, '2025-10-01'),
-('Mrs. Sandra Eze', 'sandra.eze@gtbank.com', '+2347056789123', 'client', 'active', 'sandra.jpg', 'Banker | Investor in Lekki Phase 1', NULL, '2025-10-20'),
-('Chief Tolu Adebayo', 'tolu.adebayo@yahoo.com', '+2347012345678', 'client', 'active', 'tolu.jpg', 'Politician | Needs 10-bedroom in Ikoyi', NULL, '2025-08-10'),
-('Mr. David Okocha', 'david.okocha@nnpc.gov.ng', '+2349098765432', 'client', 'active', 'david.jpg', 'NNPC Director | Abuja mansion', NULL, '2025-11-01'),
-
--- 4. REGULAR CLIENTS
-('Aisha Mohammed', 'aisha.m@gmail.com', '+2348101234567', 'client', 'active', 'default.png', 'First-time buyer | Budget ₦80M', NULL, '2025-11-10'),
-('Kemi Adewale', 'kemi.adewale@hotmail.com', '+2347087654321', 'client', 'active', 'default.png', 'Looking for 3-bed in Ajah', NULL, '2025-11-12'),
-('Chinedu Okonkwo', 'chinedu.ok@gmail.com', '+2348165432109', 'client', 'active', 'default.png', 'Land in Epe | ₦15M budget', NULL, '2025-11-13'),
-('Bola Yusuf', 'bola.yusuf@outlook.com', '+2349034567890', 'client', 'active', 'default.png', 'Renting in VI | ₦20M/year', NULL, '2025-11-14'),
-('Funmi Alabi', 'funmi.alabi@gmail.com', '+2348112233445', 'client', 'active', 'default.png', 'Student | Studio in Yaba', NULL, '2025-11-15'),
-('Ibrahim Sani', 'ibrahim.sani@yahoo.com', '+2348141122334', 'client', 'active', 'default.png', 'Duplex in Gwarinpa, Abuja', NULL, '2025-11-16'),
-('Peace John', 'peace.john@gmail.com', '+2348078899001', 'client', 'active', 'default.png', 'Family home in Ikeja GRA', NULL, '2025-11-17'),
-('Samuel Obi', 'samuel.obi@accessbank.com', '+2348129988776', 'client', 'active', 'default.png', '4-bed terrace in Lekki', NULL, '2025-11-17'),
-('Zainab Usman', 'zainab.usman@gmail.com', '+2348098877665', 'client', 'active', 'default.png', 'Apartment in Surulere', NULL, '2025-11-18');
