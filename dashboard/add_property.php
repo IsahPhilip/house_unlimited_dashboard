@@ -1,213 +1,319 @@
 <?php
-session_start();
-require_once '../inc/auth.php';
-require_once '../inc/config.php';
-require_once '../inc/functions.php';
+// dashboard/add_property.php
+require '../inc/config.php';
+require '../inc/auth.php';
 
-$error_message = '';
-$success_message = '';
+if (!in_array($_SESSION['user']['role'], ['admin', 'agent'])) {
+    header('Location: properties.php');
+    exit;
+}
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Check if user is logged in and has an ID in the session
-    if (!isset($_SESSION['user_id'])) {
-        $error_message = "Authentication error. Please log in again.";
-    } else {
-        $user_id = $_SESSION['user_id'];
-        
-        // --- Form Data Sanitization ---
-        $title = trim(filter_input(INPUT_POST, 'title', FILTER_SANITIZE_STRING));
-        $description = trim(filter_input(INPUT_POST, 'description', FILTER_SANITIZE_STRING));
-        $price = filter_input(INPUT_POST, 'price', FILTER_VALIDATE_FLOAT);
-        $location = trim(filter_input(INPUT_POST, 'location', FILTER_SANITIZE_STRING));
-        $property_type = trim(filter_input(INPUT_POST, 'property_type', FILTER_SANITIZE_STRING));
-        $status = trim(filter_input(INPUT_POST, 'status', FILTER_SANITIZE_STRING));
-        $bedrooms = filter_input(INPUT_POST, 'bedrooms', FILTER_VALIDATE_INT);
-        $bathrooms = filter_input(INPUT_POST, 'bathrooms', FILTER_VALIDATE_INT);
-        $area = filter_input(INPUT_POST, 'area', FILTER_VALIDATE_FLOAT);
+$user_id = $_SESSION['user']['id'];
+$errors = [];
+$success = false;
 
-        // --- Basic Validation ---
-        if (empty($title) || empty($location) || $price === false || $bedrooms === false || $bathrooms === false) {
-            $error_message = "Please fill in all required fields (Title, Location, Price, Bedrooms, Bathrooms).";
-        } else {
-            // --- Image Upload Handling ---
-            $image_paths = [];
-            $upload_dir = '../uploads/properties/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $title       = trim($_POST['title'] ?? '');
+    $type        = $_POST['type'] ?? 'sale';
+    $price       = floatval($_POST['price'] ?? 0);
+    $location    = trim($_POST['location'] ?? '');
+    $bedrooms    = intval($_POST['bedrooms'] ?? 0);
+    $bathrooms   = intval($_POST['bathrooms'] ?? 0);
+    $size        = trim($_POST['size'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $status      = $_POST['status'] ?? 'active';
 
-            if (isset($_FILES['images']) && !empty($_FILES['images']['name'][0])) {
-                $allowed_types = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                
-                foreach ($_FILES['images']['tmp_name'] as $key => $tmp_name) {
-                    if ($_FILES['images']['error'][$key] !== UPLOAD_ERR_OK) {
-                        $error_message = "Error uploading file: " . $_FILES['images']['name'][$key];
-                        continue; // Skip this file
-                    }
+    // Validation
+    if (empty($title)) $errors[] = "Title is required";
+    if ($price <= 0) $errors[] = "Valid price is required";
+    if (empty($location)) $errors[] = "Location is required";
+    if ($bedrooms < 1) $errors[] = "At least 1 bedroom";
+    if ($bathrooms < 1) $errors[] = "At least 1 bathroom";
+    if (empty($description)) $errors[] = "Description is required";
 
-                    $file_name = $_FILES['images']['name'][$key];
-                    $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+    // Handle image uploads
+    $uploaded_images = [];
+    if (empty($errors) && isset($_FILES['images']) && $_FILES['images']['error'][0] !== 4) {
+        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        $max_size = 5 * 1024 * 1024; // 5MB
 
-                    if (in_array($file_ext, $allowed_types)) {
-                        // Create a unique filename to prevent overwriting
-                        $new_file_name = uniqid('', true) . '.' . $file_ext;
-                        $target_path = $upload_dir . $new_file_name;
+        foreach ($_FILES['images']['tmp_name'] as $key => $tmp_name) {
+            if ($_FILES['images']['error'][$key] === 0) {
+                $file_name = $_FILES['images']['name'][$key];
+                $file_size = $_FILES['images']['size'][$key];
+                $file_ext  = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
-                        if (move_uploaded_file($tmp_name, $target_path)) {
-                            // Store the relative path for the database
-                            $image_paths[] = 'uploads/properties/' . $new_file_name;
-                        } else {
-                            $error_message = "Failed to move uploaded file: " . $file_name;
-                        }
-                    } else {
-                        $error_message = "Invalid file type: " . $file_name . ". Only JPG, PNG, GIF, WEBP are allowed.";
-                    }
+                if (!in_array($file_ext, $allowed)) {
+                    $errors[] = "File $file_name: Only JPG, PNG, WebP allowed";
+                    continue;
                 }
-            }
-            
-            // Proceed only if there were no upload errors
-            if (empty($error_message)) {
-                $images_json = json_encode($image_paths);
+                if ($file_size > $max_size) {
+                    $errors[] = "File $file_name: Max 5MB allowed";
+                    continue;
+                }
 
-                // --- Database Insertion ---
-                try {
-                    $sql = "INSERT INTO properties (user_id, title, description, price, location, property_type, status, bedrooms, bathrooms, area, images) 
-                            VALUES (:user_id, :title, :description, :price, :location, :property_type, :status, :bedrooms, :bathrooms, :area, :images)";
-                    
-                    $stmt = $pdo->prepare($sql);
-                    
-                    $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
-                    $stmt->bindParam(':title', $title, PDO::PARAM_STR);
-                    $stmt->bindParam(':description', $description, PDO::PARAM_STR);
-                    $stmt->bindParam(':price', $price);
-                    $stmt->bindParam(':location', $location, PDO::PARAM_STR);
-                    $stmt->bindParam(':property_type', $property_type, PDO::PARAM_STR);
-                    $stmt->bindParam(':status', $status, PDO::PARAM_STR);
-                    $stmt->bindParam(':bedrooms', $bedrooms, PDO::PARAM_INT);
-                    $stmt->bindParam(':bathrooms', $bathrooms, PDO::PARAM_INT);
-                    $stmt->bindParam(':area', $area);
-                    $stmt->bindParam(':images', $images_json, PDO::PARAM_STR);
+                $new_name = uniqid('prop_') . '.' . $file_ext;
+                $dest = PROPERTY_PATH . $new_name;
 
-                    if ($stmt->execute()) {
-                        $_SESSION['success_message'] = "Property added successfully!";
-                        header("Location: properties.php");
-                        exit();
-                    } else {
-                        $error_message = "Failed to add property. Please try again.";
-                    }
-                } catch (PDOException $e) {
-                    $error_message = "Database error: " . $e->getMessage();
+                if (move_uploaded_file($tmp_name, $dest)) {
+                    $uploaded_images[] = $new_name;
+                } else {
+                    $errors[] = "Failed to upload $file_name";
                 }
             }
         }
     }
-}
 
-// Include header
-include '../inc/header.php';
+    // Save to database
+    if (empty($errors)) {
+        $stmt = $db->prepare("INSERT INTO properties 
+            (agent_id, title, type, price, location, bedrooms, bathrooms, size, description, status, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+
+        $stmt->bind_param('issdsissss', $user_id, $title, $type, $price, $location, $bedrooms, $bathrooms, $size, $description, $status);
+        
+        if ($stmt->execute()) {
+            $property_id = $db->insert_id;
+
+            // Save images
+            if (!empty($uploaded_images)) {
+                $imgStmt = $db->prepare("INSERT INTO property_images (property_id, image_path) VALUES (?, ?)");
+                foreach ($uploaded_images as $img) {
+                    $imgStmt->bind_param('is', $property_id, $img);
+                    $imgStmt->execute();
+                }
+            }
+
+            $success = true;
+        } else {
+            $errors[] = "Failed to save property. Try again.";
+        }
+    }
+}
 ?>
 
-<div class="d-flex">
-    <?php include '../inc/sidebar.php'; ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Property • House Unlimited</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+    <style>
+        .form-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+        }
+        body.dark .form-container { background: #1e1e1e; }
 
-    <main class="main-content flex-grow-1 p-4">
-        <div class="container-fluid">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0 text-gray-800">Add New Property</h1>
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        body.dark .form-group label { color: #e2e8f0; }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+        }
+
+        .ql-container {
+            min-height: 200px;
+            border-radius: 12px;
+        }
+
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .image-preview img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 3px solid #e2e8f0;
+        }
+
+        .msg {
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            font-weight: 500;
+        }
+        .msg.success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .msg.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    </style>
+</head>
+<body>
+    <?php include '../inc/header.php'; ?>
+
+    <div class="container">
+        <?php include '../inc/sidebar.php'; ?>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Add New Property</h1>
+                <a href="properties.php" class="btn btn-secondary">← Back to Properties</a>
             </div>
 
-            <?php if ($error_message): ?>
-                <div class="alert alert-danger"><?php echo $error_message; ?></div>
-            <?php endif; ?>
-            <?php if ($success_message): ?>
-                <div class="alert alert-success"><?php echo $success_message; ?></div>
-            <?php endif; ?>
+            <div class="form-container">
+                <?php if ($success): ?>
+                    <div class="msg success">
+                        Property added successfully! <a href="property_detail.php?id=<?= $property_id ?>">View it here</a>
+                    </div>
+                <?php endif; ?>
 
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Property Details</h6>
-                </div>
-                <div class="card-body">
-                    <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" enctype="multipart/form-data">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label for="title" class="form-label">Property Title <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="title" name="title" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="description" class="form-label">Description</label>
-                                    <textarea class="form-control" id="description" name="description" rows="5"></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="location" class="form-label">Location / Address <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="location" name="location" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="price" class="form-label">Price (NGN) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="price" name="price" step="0.01" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="property_type" class="form-label">Property Type</label>
-                                    <select class="form-select" id="property_type" name="property_type">
-                                        <option value="House">House</option>
-                                        <option value="Apartment">Apartment</option>
-                                        <option value="Land">Land</option>
-                                        <option value="Commercial">Commercial Property</option>
-                                        <option value="Duplex">Duplex</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="status" class="form-label">Status</label>
-                                    <select class="form-select" id="status" name="status">
-                                        <option value="For Sale">For Sale</option>
-                                        <option value="For Rent">For Rent</option>
-                                        <option value="Sold">Sold</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <hr>
+                <?php if (!empty($errors)): ?>
+                    <div class="msg error">
+                        <ul>
+                            <?php foreach ($errors as $e): ?>
+                                <li><?= htmlspecialchars($e) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
 
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="bedrooms" class="form-label">Bedrooms <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="bedrooms" name="bedrooms" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="bathrooms" class="form-label">Bathrooms <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="bathrooms" name="bathrooms" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="area" class="form-label">Area (sqm)</label>
-                                    <input type="number" class="form-control" id="area" name="area" step="0.01">
-                                </div>
-                            </div>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Title *</label>
+                            <input type="text" name="title" required placeholder="e.g. Luxurious 5-Bedroom Duplex in Lekki Phase 1">
                         </div>
 
-                        <hr>
-
-                        <div class="mb-4">
-                            <label for="images" class="form-label">Property Images</label>
-                            <p class="small text-muted">You can upload multiple images. Allowed types: JPG, PNG, GIF, WEBP.</p>
-                            <input type="file" class="form-control" id="images" name="images[]" multiple>
+                        <div class="form-group">
+                            <label>Type</label>
+                            <select name="type">
+                                <option value="sale">For Sale</option>
+                                <option value="rent">For Rent</option>
+                            </select>
                         </div>
 
-                        <button type="submit" class="btn btn-primary">Add Property</button>
-                        <a href="properties.php" class="btn btn-secondary">Cancel</a>
-                    </form>
-                </div>
+                        <div class="form-group">
+                            <label>Price (₦) *</label>
+                            <input type="number" name="price" required placeholder="500000000" step="1000">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Location *</label>
+                            <input type="text" name="location" required placeholder="e.g. Lekki Phase 1, Lagos">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Bedrooms *</label>
+                            <select name="bedrooms" required>
+                                <?php for($i=1; $i<=10; $i++): ?>
+                                    <option value="<?= $i ?>"><?= $i ?> Bedroom<?= $i>1?'s':'' ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Bathrooms *</label>
+                            <select name="bathrooms" required>
+                                <?php for($i=1; $i<=8; $i++): ?>
+                                    <option value="<?= $i ?>"><?= $i ?> Bathroom<?= $i>1?'s':'' ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Size (sqm)</label>
+                            <input type="text" name="size" placeholder="e.g. 450 sqm">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select name="status">
+                                <option value="active">Active</option>
+                                <option value="under_offer">Under Offer</option>
+                                <option value="sold">Sold/Rented</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description *</label>
+                        <div id="editor" style="height:250px;"></div>
+                        <textarea name="description" id="description" style="display:none;"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Upload Images (Multiple)</label>
+                        <input type="file" name="images[]" multiple accept="image/*" id="imageInput">
+                        <div class="image-preview" id="preview"></div>
+                        <small>Max 5MB each • JPG, PNG, WebP</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="padding:1rem 3rem; font-size:1.1rem;">
+                        Publish Property
+                    </button>
+                </form>
             </div>
-        </div>
-    </main>
-</div>
+        </main>
+    </div>
 
-<?php include '../inc/footer.php'; ?>
+    <!-- Quill Rich Text Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <script>
+        const quill = new Quill('#editor', {
+            theme: 'snow',
+            placeholder: 'Describe this beautiful property... Mention amenities, neighborhood, features...',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline'],
+                    ['link', 'image'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['clean']
+                ]
+            }
+        });
+
+        // Sync Quill to hidden textarea
+        const form = document.querySelector('form');
+        form.onsubmit = () => {
+            document.getElementById('description').value = quill.root.innerHTML;
+        };
+
+        // Image Preview
+        document.getElementById('imageInput').onchange = function(e) {
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '';
+            [...e.target.files].forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    preview.appendChild(img);
+                }
+            });
+        };
+    </script>
+</body>
+</html>
