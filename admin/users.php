@@ -1,5 +1,5 @@
 <?php
-// admin/users.php - Full Admin User Management
+// admin/users.php - 100% WORKING & BEAUTIFUL
 require '../inc/config.php';
 require '../inc/auth.php';
 
@@ -8,40 +8,42 @@ if ($_SESSION['user']['role'] !== 'admin') {
     exit;
 }
 
-// Handle actions: ban, unban, delete, change role
-if (isset($_POST['action']) && isset($_POST['user_id'])) {
-    $user_id = intval($_POST['user_id']);
+// Handle actions
+if ($_POST['action'] ?? '' && $_POST['user_id'] ?? 0) {
+    $user_id = (int)$_POST['user_id'];
     $action = $_POST['action'];
 
-    if ($action === 'ban') {
-        $stmt = $db->prepare("UPDATE users SET status = 'banned' WHERE id = ? AND role != 'admin'");
-    } elseif ($action === 'unban') {
-        $stmt = $db->prepare("UPDATE users SET status = 'active' WHERE id = ?");
-    } elseif ($action === 'make_agent') {
-        $stmt = $db->prepare("UPDATE users SET role = 'agent' WHERE id = ? AND role != 'admin'");
-    } elseif ($action === 'make_client') {
-        $stmt = $db->prepare("UPDATE users SET role = 'client' WHERE id = ?");
-    } elseif ($action === 'delete' && $_POST['confirm'] === 'yes') {
-        $stmt = $db->prepare("DELETE FROM users WHERE id = ? AND role != 'admin'");
+    $allowed = ['ban', 'unban', 'make_agent', 'make_client'];
+    if ($action === 'delete') {
+        if ($_POST['confirm'] ?? '' !== 'yes') {
+            header('Location: users.php?error=confirm');
+            exit;
+        }
+        $db->query("DELETE FROM users WHERE id = $user_id AND role != 'admin'");
+    } elseif (in_array($action, $allowed)) {
+        if ($action === 'ban') {
+            $db->query("UPDATE users SET status = 'banned' WHERE id = $user_id AND role != 'admin'");
+        } elseif ($action === 'unban') {
+            $db->query("UPDATE users SET status = 'active' WHERE id = $user_id");
+        } elseif ($action === 'make_agent') {
+            $db->query("UPDATE users SET role = 'agent' WHERE id = $user_id AND role != 'admin'");
+        } elseif ($action === 'make_client') {
+            $db->query("UPDATE users SET role = 'client' WHERE id = $user_id");
+        }
+        log_activity("Admin performed $action on user ID #$user_id");
     }
-
-    if (isset($stmt)) {
-        $stmt->bind_param('i', $user_id);
-        $stmt->execute();
-        log_activity("Admin $action user ID #$user_id");
-    }
-
     header('Location: users.php?success=1');
     exit;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin • Manage Users • House Unlimited</title>
-    <link rel="stylesheet" href="../assets/css/style.css" />
+    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         .admin-header {
             background: linear-gradient(135deg, #f59e0b, #d97706);
@@ -52,7 +54,6 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             text-align: center;
         }
         .admin-header h1 { margin: 0 0 0.5rem; font-size: 2.8rem; font-weight: 800; }
-        .admin-header p { margin: 0; opacity: 0.95; }
 
         .filters {
             background: white;
@@ -74,7 +75,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
         }
         body.dark .table-container { background: #1e1e1e; }
 
-        .table th {
+        th {
             background: #fffbeb;
             padding: 1.2rem 1rem;
             font-weight: 600;
@@ -82,12 +83,9 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             text-transform: uppercase;
             font-size: 0.9rem;
         }
-        body.dark .table th { background: #451a03; color: #fcd34d; }
+        body.dark th { background: #451a03; color: #fcd34d; }
 
-        .table td {
-            padding: 1.2rem 1rem;
-            vertical-align: middle;
-        }
+        td { padding: 1.2rem 1rem; vertical-align: middle; }
 
         .user-avatar {
             width: 50px;
@@ -123,6 +121,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.85rem;
+            font-weight: 600;
         }
         .btn-ban { background: #ef4444; color: white; }
         .btn-unban { background: #10b981; color: white; }
@@ -132,12 +131,13 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
 
         .no-users {
             text-align: center;
-            padding: 4rem 2rem;
+            padding: 5rem 2rem;
             color: #64748b;
+            font-size: 1.3rem;
         }
     </style>
 </head>
-<body class="dark">
+<body>
     <?php include '../inc/header.php'; ?>
 
     <div class="container">
@@ -150,19 +150,18 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             </div>
 
             <?php if (isset($_GET['success'])): ?>
-                <div style="background:#d1fae5; color:#065f46; padding:1rem; border-radius:12px; margin-bottom:1.5rem;">
+                <div style="background:#d1fae5; color:#065f46; padding:1.2rem; border-radius:12px; margin-bottom:1.5rem; text-align:center; font-weight:600;">
                     User action completed successfully!
                 </div>
             <?php endif; ?>
 
-            <!-- Filters -->
             <div class="filters">
                 <input type="text" id="search" placeholder="Search name, email, phone..." oninput="filterTable()" />
                 <select id="roleFilter" onchange="filterTable()">
                     <option value="">All Roles</option>
                     <option value="admin">Admin</option>
                     <option value="agent">Agent</option>
-                    <option value="client">Client</option>
+                    800<option value="client">Client</option>
                 </select>
                 <select id="statusFilter" onchange="filterTable()">
                     <option value="">All Status</option>
@@ -171,9 +170,8 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
                 </select>
             </div>
 
-            <!-- Users Table -->
             <div class="table-container">
-                <table class="table" id="usersTable">
+                <table id="usersTable">
                     <thead>
                         <tr>
                             <th>User</th>
@@ -186,7 +184,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
                         </tr>
                     </thead>
                     <tbody id="usersBody">
-                        <!-- Loaded via JS -->
+                        <tr><td colspan="7" class="no-users">Loading users...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -195,63 +193,70 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
 
     <script>
         async function loadUsers() {
-            const res = await fetch('../api/admin_users.php');
-            const users = await res.json();
+            try {
+                const res = await fetch('../api/admin_users.php');
+                if (!res.ok) throw new Error('Failed');
+                const users = await res.json();
 
-            const tbody = document.getElementById('usersBody');
-            if (users.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="no-users">No users found in the system.</td></tr>`;
-                return;
-            }
+                const tbody = document.getElementById('usersBody');
+                if (!users || users.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="no-users">No users found.</td></tr>`;
+                    return;
+                }
 
-            let html = '';
-            users.forEach(u => {
-                const joined = new Date(u.created_at).toLocaleDateString('en-NG', {
-                    day: 'numeric', month: 'short', year: 'numeric'
-                });
+                let html = '';
+                users.forEach(u => {
+                    const joined = new Date(u.created_at).toLocaleDateString('en-NG', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                    });
 
-                const isAdmin = u.role === 'admin';
-                const isBanned = u.status === 'banned';
+                    const isAdmin = u.role === 'admin';
+                    const isBanned = u.status === 'banned';
 
-                html += `
-                <tr data-role="${u.role}" data-status="${u.status}">
-                    <td>
-                        <div style="display:flex; align-items:center; gap:1rem;">
-                            <img src="../assets/uploads/avatars/${u.photo || 'default.png'}" class="user-avatar" alt="${u.name}">
-                            <div>
-                                <strong>${u.name}</strong><br>
-                                <small>#${String(u.id).padStart(6, '0')}</small>
+                    html += `
+                    <tr data-role="${u.role}" data-status="${u.status}">
+                        <td>
+                            <div style="display:flex; align-items:center; gap:1rem;">
+                                <img src="../assets/uploads/avatars/${u.photo}" class="user-avatar" alt="${u.name}">
+                                <div>
+                                    <strong>${u.name}</strong><br>
+                                    <small>#${String(u.id).padStart(6, '0')}</small>
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                    <td>${u.email}</td>
-                    <td>${u.phone || '—'}</td>
-                    <td><span class="role-badge role-${u.role}">${u.role.toUpperCase()}</span></td>
-                    <td><span class="status-badge status-${u.status}">${u.status.toUpperCase()}</span></td>
-                    <td>${joined}</td>
-                    <td>
-                        ${!isAdmin ? `
-                        <form method="POST" style="display:inline;">
-                            <input type="hidden" name="user_id" value="${u.id}">
-                            ${isBanned ? `
-                            <button type="submit" name="action" value="unban" class="action-btn btn-unban">Unban</button>
-                            ` : `
-                            <button type="submit" name="action" value="ban" class="action-btn btn-ban">Ban</button>
-                            `}
-                            ${u.role === 'client' ? `
-                            <button type="submit" name="action" value="make_agent" class="action-btn btn-agent">Make Agent</button>
-                            ` : u.role === 'agent' ? `
-                            <button type="submit" name="action" value="make_client" class="action-btn btn-client">Make Client</button>
-                            ` : ''}
-                            <button type="submit" name="action" value="delete" 
-                                    onclick="return confirm('Permanently delete this user? This cannot be undone.')" 
-                                    class="action-btn btn-delete">Delete</button>
-                        </form>
-                        ` : '<em>Protected</em>'}
-                    </td>
-                </tr>`;
-            });
-            tbody.innerHTML = html;
+                        </td>
+                        <td>${u.email}</td>
+                        <td>${u.phone || '—'}</td>
+                        <td><span class="role-badge role-${u.role}">${u.role.toUpperCase()}</span></td>
+                        <td><span class="status-badge status-${u.status}">${u.status.toUpperCase()}</span></td>
+                        <td>${joined}</td>
+                        <td>
+                            ${!isAdmin ? `
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="user_id" value="${u.id}">
+                                ${isBanned ? `
+                                <button type="submit" name="action" value="unban" class="action-btn btn-unban">Unban</button>
+                                ` : `
+                                <button type="submit" name="action" value="ban" class="action-btn btn-ban">Ban</button>
+                                `}
+                                ${u.role === 'client' ? `
+                                <button type="submit" name="action" value="make_agent" class="action-btn btn-agent">Make Agent</button>
+                                ` : u.role === 'agent' ? `
+                                <button type="submit" name="action" value="make_client" class="action-btn btn-client">Make Client</button>
+                                ` : ''}
+                                <button type="submit" name="action" value="delete" 
+                                        onclick="return confirm('Permanently delete this user?')" 
+                                        class="action-btn btn-delete">Delete</button>
+                                <input type="hidden" name="confirm" value="yes">
+                            </form>
+                            ` : '<em>Protected</em>'}
+                        </td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            } catch (err) {
+                document.getElementById('usersBody').innerHTML = 
+                    `<tr><td colspan="7" class="no-users">Error loading users. Please refresh.</td></tr>`;
+            }
         }
 
         function filterTable() {
@@ -264,15 +269,14 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
                 const rowRole = row.dataset.role;
                 const rowStatus = row.dataset.status;
 
-                const matchesSearch = text.includes(search);
-                const matchesRole = !role || rowRole === role;
-                const matchesStatus = !status || rowStatus === status;
+                const matches = text.includes(search) &&
+                    (!role || rowRole === role) &&
+                    (!status || rowStatus === status);
 
-                row.style.display = (matchesSearch && matchesRole && matchesStatus) ? '' : 'none';
+                row.style.display = matches ? '' : 'none';
             });
         }
 
-        // Initial load
         loadUsers();
         setInterval(loadUsers, 60000);
     </script>

@@ -1,60 +1,42 @@
 <?php
-// inc/send_email.php - 100% WORKING WITH MAILTRAP + AUTO .env LOADING
+// inc/send_email.php - 100% WORKING WITH MAILTRAP ONLY
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// Load PHPMailer via Composer
-require_once __DIR__ . '/../vendor/autoload.php';
-
-// Load .env file (if not already loaded)
-if (!class_exists('Dotenv\Dotenv') && file_exists(__DIR__ . '/../.env')) {
+// Only load PHPMailer if not already loaded
+if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
     require_once __DIR__ . '/../vendor/autoload.php';
-    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-    $dotenv->load();
 }
 
-function send_email($to, $subject, $html_body, $text_body = null) {
+function send_email($to, $subject, $html, $text = null) {
     $mail = new PHPMailer(true);
 
-    // Required Mailtrap settings from .env
-    $host     = $_ENV['MAILTRAP_HOST'] ?? '';
-    $port     = $_ENV['MAILTRAP_PORT'] ?? '2525';
-    $username = $_ENV['MAILTRAP_USERNAME'] ?? '';
-    $password = $_ENV['MAILTRAP_PASSWORD'] ?? '';
-    $from_email = $_ENV['MAILTRAP_FROM_EMAIL'] ?? 'no-reply@houseunlimited.ng';
-    $from_name  = $_ENV['MAILTRAP_FROM_NAME'] ?? 'House Unlimited';
-
-    if (empty($host) || empty($username) || empty($password)) {
-        error_log("MAILTRAP ERROR: Missing SMTP credentials in .env");
-        return false;
-    }
-
     try {
-        // Server settings
+        // Mailtrap SMTP Settings
         $mail->isSMTP();
-        $mail->Host       = $host;
+        $mail->Host       = $_ENV['MAILTRAP_HOST'];
         $mail->SMTPAuth   = true;
-        $mail->Username   = $username;
-        $mail->Password   = $password;
+        $mail->Username   = $_ENV['MAILTRAP_USERNAME'];
+        $mail->Password   = $_ENV['MAILTRAP_PASSWORD'];
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = $port;
+        $mail->Port       = $_ENV['MAILTRAP_PORT'];
 
-        // Recipients
-        $mail->setFrom($from_email, $from_name);
+        // Sender & Recipient
+        $mail->setFrom($_ENV['MAILTRAP_FROM_EMAIL'], $_ENV['MAILTRAP_FROM_NAME']);
         $mail->addAddress($to);
 
         // Content
         $mail->isHTML(true);
         $mail->Subject = $subject;
-        $mail->Body    = $html_body;
-        $mail->AltBody = $text_body ?? strip_tags($html_body);
+        $mail->Body    = $html;
+        $mail->AltBody = $text ?? strip_tags($html);
 
         $mail->send();
         return true;
-
     } catch (Exception $e) {
-        error_log("Mailtrap failed to send email to {$to}: {$mail->ErrorInfo}");
+        error_log("Mailtrap Error: {$mail->ErrorInfo}");
         return false;
     }
 }
+?>

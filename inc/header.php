@@ -13,7 +13,7 @@
 <header class="header" style="background:#1e293b; color:white; padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; position:fixed; top:0; left:0; right:0; z-index:1000;">
     <div style="display:flex; align-items:center; gap:1rem;">
         <h2 style="margin:0; font-size:1.8rem;">House Unlimited</h2>
-    </div>
+        </div>
     <div style="display:flex; align-items:center; gap:1.5rem;">
         <span>Welcome, <strong><?= escape($user['name']) ?></strong></span>
         <img src="<?= BASE_URL ?>/assets/uploads/avatars/<?= $user['photo'] ?? 'default.png' ?>" 

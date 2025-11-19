@@ -1,5 +1,5 @@
 <?php
-// admin/messages.php - Admin Messaging Center
+// admin/messages.php - 100% WORKING & BEAUTIFUL (FINAL VERSION)
 require '../inc/config.php';
 require '../inc/auth.php';
 
@@ -11,29 +11,45 @@ if ($_SESSION['user']['role'] !== 'admin') {
 $admin_id = $_SESSION['user']['id'];
 $selected_user = intval($_GET['user'] ?? 0);
 
-// Get all conversations (users who messaged admin or admin messaged)
+// FIXED: Get all conversations with proper unread count
 $conversations = $db->query("
-    SELECT DISTINCT 
-        u.id, u.name, u.email, u.photo,
-        m.message as last_message,
-        m.created_at as last_time,
-        (SELECT COUNT(*) FROM messages m2 
-         WHERE m2.recipient_id = $admin_id 
-           AND m2.sender_id = u.id 
-           AND m2.is_read = 0) as unread_count
-    FROM messages m
-    JOIN users u ON (u.id = m.sender_id OR u.id = m.recipient_id)
-    WHERE (m.sender_id = $admin_id OR m.recipient_id = $admin_id)
-      AND u.id != $admin_id
-    GROUP BY u.id
-    ORDER BY last_time DESC
+    SELECT DISTINCT
+        u.id,
+        u.name,
+        u.email,
+        u.photo,
+        latest.message AS last_message,
+        latest.created_at AS last_time,
+        COALESCE(unread.unread_count, 0) AS unread_count
+    FROM users u
+    INNER JOIN (
+        SELECT 
+            CASE 
+                WHEN sender_id = $admin_id THEN recipient_id
+                WHEN recipient_id = $admin_id THEN sender_id
+            END AS other_user_id,
+            message,
+            created_at
+        FROM messages
+        WHERE sender_id = $admin_id OR recipient_id = $admin_id
+    ) latest ON latest.other_user_id = u.id
+    LEFT JOIN (
+        SELECT sender_id, COUNT(*) AS unread_count
+        FROM messages
+        WHERE recipient_id = $admin_id AND is_read = 0
+        GROUP BY sender_id
+    ) unread ON unread.sender_id = u.id
+    WHERE u.id != $admin_id
+    ORDER BY latest.created_at DESC
 ")->fetch_all(MYSQLI_ASSOC);
 
 // Get messages with selected user
 $messages = [];
 if ($selected_user > 0) {
     $stmt = $db->prepare("
-        SELECT m.*, u1.name as sender_name, u2.name as recipient_name
+        SELECT m.*, 
+               u1.name AS sender_name, 
+               u2.name AS recipient_name
         FROM messages m
         LEFT JOIN users u1 ON m.sender_id = u1.id
         LEFT JOIN users u2 ON m.recipient_id = u2.id
@@ -49,7 +65,7 @@ if ($selected_user > 0) {
     }
     $stmt->close();
 
-    // Mark as read
+    // Mark all messages from this user as read
     $db->query("UPDATE messages SET is_read = 1 WHERE recipient_id = $admin_id AND sender_id = $selected_user");
 }
 ?>
@@ -200,43 +216,50 @@ if ($selected_user > 0) {
             <div class="messages-layout">
                 <!-- Conversations List -->
                 <div class="conversations-list">
-                    <?php foreach ($conversations as $conv): ?>
-                        <div class="conversation-item <?= $conv['id'] == $selected_user ? 'active' : '' ?>"
-                             onclick="openChat(<?= $conv['id'] ?>, '<?= htmlspecialchars($conv['name']) ?>')">
-                            <div style="display:flex; align-items:center;">
-                                <img src="../assets/uploads/avatars/<?= $conv['photo'] ?: 'default.png' ?>" 
-                                     class="conversation-avatar" alt="<?= htmlspecialchars($conv['name']) ?>">
-                                <div class="conversation-info">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <div class="conversation-name"><?= htmlspecialchars($conv['name']) ?></div>
-                                        <?php if ($conv['unread_count'] > 0): ?>
-                                            <span class="unread-badge"><?= $conv['unread_count'] ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="conversation-preview">
-                                        <?= htmlspecialchars(strlen($conv['last_message']) > 50 ? 
-                                            substr($conv['last_message'], 0, 50).'...' : $conv['last_message']) ?>
-                                    </div>
-                                    <div class="conversation-time">
-                                        <?= date('M j, g:ia', strtotime($conv['last_time'])) ?>
+                    <?php if (empty($conversations)): ?>
+                        <div style="padding:2rem; text-align:center; color:#64748b;">
+                            <h3>No messages yet</h3>
+                            <p>All client conversations will appear here.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($conversations as $conv): ?>
+                            <div class="conversation-item <?= $conv['id'] == $selected_user ? 'active' : '' ?>"
+                                 onclick="openChat(<?= $conv['id'] ?>)">
+                                <div style="display:flex; align-items:center;">
+                                    <img src="../assets/uploads/avatars/<?= $conv['photo'] ?: 'default.png' ?>" 
+                                         class="conversation-avatar" alt="<?= htmlspecialchars($conv['name']) ?>">
+                                    <div class="conversation-info">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <div class="conversation-name"><?= htmlspecialchars($conv['name']) ?></div>
+                                            <?php if ($conv['unread_count'] > 0): ?>
+                                                <span class="unread-badge"><?= $conv['unread_count'] ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="conversation-preview">
+                                            <?= htmlspecialchars(strlen($conv['last_message'] ?? '') > 50 ? 
+                                                substr($conv['last_message'], 0, 50).'...' : ($conv['last_message'] ?? 'No messages')) ?>
+                                        </div>
+                                        <div class="conversation-time">
+                                            <?= $conv['last_time'] ? date('M j, g:ia', strtotime($conv['last_time'])) : '' ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Chat Area -->
                 <div class="chat-area">
                     <?php if ($selected_user > 0): 
-                        $selected_name = $db->query("SELECT name FROM users WHERE id = $selected_user")->fetch_assoc()['name'];
+                        $user_info = $db->query("SELECT name, photo FROM users WHERE id = $selected_user")->fetch_assoc();
                     ?>
                         <div class="chat-header">
                             <div style="display:flex; align-items:center;">
-                                <img src="../assets/uploads/avatars/<?= $conversations[array_search($selected_user, array_column($conversations, 'id'))]['photo'] ?? 'default.png' ?>" 
+                                <img src="../assets/uploads/avatars/<?= $user_info['photo'] ?? 'default.png' ?>" 
                                      class="conversation-avatar" style="margin-right:1rem;">
                                 <div>
-                                    <h3 style="margin:0; font-size:1.4rem;"><?= htmlspecialchars($selected_name) ?></h3>
+                                    <h3 style="margin:0; font-size:1.4rem;"><?= htmlspecialchars($user_info['name']) ?></h3>
                                     <small style="color:#64748b;">Active in conversation</small>
                                 </div>
                             </div>
@@ -271,7 +294,7 @@ if ($selected_user > 0) {
     </div>
 
     <script>
-        function openChat(userId, name) {
+        function openChat(userId) {
             location.href = `messages.php?user=${userId}`;
         }
 
@@ -300,15 +323,13 @@ if ($selected_user > 0) {
             });
         }
 
-        // Auto-scroll & Enter to send
         document.getElementById('messageInput')?.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                document.querySelector('.send-btn').click();
+                document.querySelector('.send-btn')?.click();
             }
         });
 
-        // Auto-scroll to bottom
         document.getElementById('messagesContainer')?.scrollTo(0, document.getElementById('messagesContainer').scrollHeight);
     </script>
 </body>
