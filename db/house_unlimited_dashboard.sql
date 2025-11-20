@@ -306,6 +306,8 @@ INSERT INTO `transactions` (`id`, `client_id`, `property_id`, `amount`, `currenc
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
+  `referral_id` int(11) NOT NULL,
+  `username` varchar(100) NOT NULL,
   `name` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,

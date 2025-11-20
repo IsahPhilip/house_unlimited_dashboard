@@ -30,3 +30,34 @@ house-unlimited/
 ├── register.php
 ├── logout.php
 └── .htaccess
+
+# .htaccess
+RewriteEngine On
+
+# Force HTTPS (uncomment when live)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Remove .php extension
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.*)$ $1.php [L]
+
+# Block direct access to inc/ and api/
+RewriteRule ^(inc|api)/ - [F,L]
+
+# Block directory listing
+Options -Indexes
+
+# Security headers
+Header set X-Content-Type-Options "nosniff"
+Header set X-Frame-Options "DENY"
+Header set X-XSS-Protection "1; mode=block"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+# Compress output
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript
+</IfModule>
+
+users should be able to make payment for a property. Implement a logic and other process that follows afterwards.

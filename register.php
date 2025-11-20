@@ -6,6 +6,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
     $phone = trim($_POST['phone'] ?? '');
+    $referral_code = trim($_POST['referral_code'] ?? '');
+    $referrer_id = null;
+
+    if (!empty($referral_code)) {
+        $decoded = base64_decode($referral_code);
+        if (strpos($decoded, 'ref=') === 0) {
+            $referrer_id = (int)str_replace('ref=', '', $decoded);
+        }
+    }
 
     // Check if exists
     $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
@@ -14,9 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt->get_result()->num_rows > 0) {
         $error = "Email already registered";
     } else {
-        $stmt = $db->prepare("INSERT INTO users (name, email, phone, role) VALUES (?, ?, ?, 'client')");
-        $stmt->bind_param('sss', $name, $email, $phone);
+        $stmt = $db->prepare("INSERT INTO users (name, email, phone, role, referrer_id) VALUES (?, ?, ?, 'client', ?)");
+        $stmt->bind_param('ssss', $name, $email, $phone, $referrer_id);
         $stmt->execute();
+        $new_user_id = $stmt->insert_id;
+
+        if ($referrer_id && $new_user_id) {
+            $stmt = $db->prepare("INSERT INTO referrals (referrer_id, referee_id) VALUES (?, ?)");
+            $stmt->bind_param('ii', $referrer_id, $new_user_id);
+            $stmt->execute();
+        }
 
         header('Location: login.php?success=Account created! Login now.');
         exit;
@@ -51,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="text" name="name" placeholder="Full Name" required />
             <input type="email" name="email" placeholder="Email Address" required />
             <input type="tel" name="phone" placeholder="Phone (e.g. +2348012345678)" />
+            <input type="text" name="referral_code" placeholder="Referral Code (Optional)" value="<?= htmlspecialchars($_GET['ref'] ?? '') ?>" />
             <button type="submit">Create My Account</button>
         </form>
 
