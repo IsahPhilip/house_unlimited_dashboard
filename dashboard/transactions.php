@@ -237,7 +237,7 @@ $role = $user['role'];
                     <td><strong>${date}</strong></td>
                     <td>
                         <div style="display:flex; align-items:center; gap:1rem;">
-                            <img src="../assets/uploads/properties/${t.property_image || 'default.jpg'}" 
+                            <img src="../assets/uploads/properties/${t.property_image || 'default_property.png'}" 
                                  class="property-thumb" alt="${t.property_title}">
                             <div>
                                 <strong>${t.property_title}</strong><br>

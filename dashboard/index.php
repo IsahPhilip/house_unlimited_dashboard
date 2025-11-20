@@ -192,25 +192,37 @@ $role = $user['role'];
         }
 
         // Recent Activity (Sample + Real from DB later)
-        function loadActivity() {
-            const activities = [
-                "You scheduled a viewing for Guzape 5-Bedroom Duplex",
-                "New message from Client: Mr. Adebayo",
-                "Payment received: ₦50,000,000 for Victoria Island Plot",
-                "New property added: 4-Bedroom Terrace in Lekki Phase 1",
-                "Appointment confirmed for tomorrow at 2:00 PM"
-            ];
+        async function loadActivity() {
             const feed = document.getElementById('activityFeed');
-            feed.innerHTML = '';
-            activities.forEach(act => {
-                const li = document.createElement('li');
-                li.className = 'activity-item';
-                li.innerHTML = `
-                    <div>${act}</div>
-                    <div class="activity-time">${new Date().toLocaleString('en-NG', {hour: '2-digit', minute: '2-digit'})}</div>
-                `;
-                feed.appendChild(li);
-            });
+            feed.innerHTML = '<li class="activity-item"><div>Loading recent actions...</div></li>'; // Show loading state
+
+            try {
+                const res = await fetch('../api/get_activity_logs.php');
+                const activities = await res.json();
+
+                feed.innerHTML = ''; // Clear loading state
+
+                if (activities.length === 0) {
+                    const li = document.createElement('li');
+                    li.className = 'activity-item';
+                    li.innerHTML = '<div>No recent activity.</div>';
+                    feed.appendChild(li);
+                    return;
+                }
+
+                activities.forEach(act => {
+                    const li = document.createElement('li');
+                    li.className = 'activity-item';
+                    li.innerHTML = `
+                        <div>${act.action}</div>
+                        <div class="activity-time">${act.timestamp}</div>
+                    `;
+                    feed.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error loading activity:', error);
+                feed.innerHTML = '<li class="activity-item"><div>Failed to load activity.</div></li>';
+            }
         }
 
         // Initialize

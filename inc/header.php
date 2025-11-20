@@ -17,7 +17,7 @@
         </div>
     <div style="display:flex; align-items:center; gap:1.5rem;">
         <span>Welcome, <strong><?= escape($user['name']) ?></strong></span>
-        <img src="<?= BASE_URL ?>/assets/uploads/avatars/<?= $user['photo'] ?? 'default.png' ?>" 
+        <img src="../assets/uploads/avatars/<?= $user['photo'] ?? 'default_avatar.png' ?>" onerror="this.src='../assets/uploads/avatars/default_avatar.png'"
              alt="Avatar" style="width:44px; height:44px; border-radius:50%; object-fit:cover;">
         <a href="<?= BASE_URL ?>/dashboard/profile.php" style="color:#94a3b8; text-decoration:none;">Profile</a>
         <a href="<?= BASE_URL ?>/logout.php" class="btn btn-sm" style="background:#ef4444; color:white; padding:0.6rem 1.2rem; border-radius:8px;">Logout</a>

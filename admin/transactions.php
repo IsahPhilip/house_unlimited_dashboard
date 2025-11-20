@@ -1,76 +1,107 @@
 <?php
-// admin/transactions.php - Full Transaction & Revenue Analytics Dashboard
+// admin/properties.php — PERSONAL AGENT REVENUE DASHBOARD (2025 LUXURY EDITION)
 require '../inc/config.php';
 require '../inc/auth.php';
 
 if ($_SESSION['user']['role'] !== 'admin') {
-    header('Location: ../dashboard/index.php');
+    header('Location: ../dashboard/');
     exit;
 }
 
-// Filters
-$period = $_GET['period'] ?? '7days'; // today, 7days, 30days, custom
+$admin_id = $_SESSION['user']['id'];
+$admin_name = $_SESSION['user']['name'];
+
+$period = $_GET['period'] ?? '7days';
 $start_date = $_GET['start'] ?? '';
 $end_date = $_GET['end'] ?? '';
 
-// Build date filter
-$dateFilter = '';
-$params = [];
-$types = '';
-
+// Build date filter (personal to this agent)
 if ($period === 'today') {
-    $dateFilter = "DATE(t.created_at) = CURDATE()";
+    $where = "DATE(t.created_at) = CURDATE() AND p.agent_id = ?";
+    $params = [$admin_id];
+    $types = 'i';
 } elseif ($period === '7days') {
-    $dateFilter = "t.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+    $where = "t.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND p.agent_id = ?";
+    $params = [$admin_id];
+    $types = 'i';
 } elseif ($period === '30days') {
-    $dateFilter = "t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+    $where = "t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND p.agent_id = ?";
+    $params = [$admin_id];
+    $types = 'i';
 } elseif ($period === 'custom' && $start_date && $end_date) {
-    $dateFilter = "DATE(t.created_at) BETWEEN ? AND ?";
-    $params[] = $start_date;
-    $params[] = $end_date;
-    $types .= 'ss';
+    $where = "DATE(t.created_at) BETWEEN ? AND ? AND p.agent_id = ?";
+    $params = [$start_date, $end_date, $admin_id];
+    $types = 'ssi';
 } else {
-    $dateFilter = "t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+    $where = "t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND p.agent_id = ?";
+    $params = [$admin_id];
+    $types = 'i';
 }
 
-// Summary Stats
-$stats = $db->query("
+// === PERSONAL REVENUE STATS ===
+$statsQuery = "
     SELECT 
         COUNT(*) as total_txns,
-        SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END) as revenue,
-        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
-        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
-    FROM transactions t
-    WHERE $dateFilter
-")->fetch_assoc();
+        COALESCE(SUM(CASE WHEN t.status = 'success' THEN t.amount ELSE 0 END), 0) as revenue,
+        COUNT(CASE WHEN t.status = 'success' THEN 1 END) as successful,
+        COUNT(CASE WHEN t.status = 'failed' THEN 1 END) as failed,
+        COUNT(CASE WHEN t.status = 'pending' THEN 1 END) as pending
+FROM transactions t
+JOIN properties p ON t.property_id = p.id
+WHERE $where
+";
 
-// Top Properties
-$topProperties = $db->query("
-    SELECT p.title, COUNT(*) as bookings, SUM(t.amount) as revenue
+$stmt = $db->prepare($statsQuery);
+$stmt->bind_param($types, ...$params);
+$stmt->execute();
+$stats = $stmt->get_result()->fetch_assoc();
+
+// === PERSONAL REVENUE CHART (Last 30 Days) ===
+$chartQuery = "
+    SELECT 
+        DATE(t.created_at) as date,
+        COALESCE(SUM(CASE WHEN t.status = 'success' THEN t.amount ELSE 0 END), 0) as daily_revenue
     FROM transactions t
     JOIN properties p ON t.property_id = p.id
-    WHERE t.status = 'success' AND $dateFilter
-    GROUP BY p.id
-    ORDER BY revenue DESC
-    LIMIT 5
-")->fetch_all(MYSQLI_ASSOC);
+    WHERE t.created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+      AND p.agent_id = ?
+    GROUP BY DATE(t.created_at)
+    ORDER BY date ASC
+";
 
-// Recent Transactions
-$limit = 25;
-$recent = $db->prepare("
-    SELECT t.*, u.name as client_name, u.email, p.title as property_title, a.name as agent_name
-    FROM transactions t
-    LEFT JOIN users u ON t.client_id = u.id
-    LEFT JOIN properties p ON t.property_id = p.id
-    LEFT JOIN users a ON p.agent_id = a.id
-    WHERE $dateFilter
-    ORDER BY t.created_at DESC
-    LIMIT ?
+$stmt = $db->prepare($chartQuery);
+$stmt->bind_param('i', $admin_id);
+$stmt->execute();
+$chartResult = $stmt->get_result();
+
+$chartData = [];
+$labels = [];
+
+for ($i = 29; $i >= 0; $i--) {
+    $date = date('Y-m-d', strtotime("-$i days"));
+    $labels[] = date('M j', strtotime($date));
+    $chartData[$date] = 0;
+}
+
+while ($row = $chartResult->fetch_assoc()) {
+    $chartData[$row['date']] = (int)$row['daily_revenue'];
+}
+$revenueValues = array_values($chartData);
+
+// === MY PROPERTIES ONLY (with earnings) ===
+$myProperties = $db->prepare("
+    SELECT p.id, p.title, p.location, p.price,
+           COUNT(t.id) as total_bookings,
+           COALESCE(SUM(CASE WHEN t.status = 'success' THEN t.amount ELSE 0 END), 0) as earned
+    FROM properties p
+    LEFT JOIN transactions t ON p.id = t.property_id
+    WHERE p.agent_id = ?
+    GROUP BY p.id
+    ORDER BY earned DESC, p.created_at DESC
 ");
-$recent->bind_param('i', $limit);
-$recent->execute();
-$transactions = $recent->get_result()->fetch_all(MYSQLI_ASSOC);
+$myProperties->bind_param('i', $admin_id);
+$myProperties->execute();
+$properties = $myProperties->get_result()->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -78,182 +109,208 @@ $transactions = $recent->get_result()->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transactions • Admin • House Unlimited</title>
+    <title>My Properties & Earnings • Agent • House Unlimited</title>
     <link rel="stylesheet" href="../assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .analytics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .analytics-card {
-            background: white;
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        :root { --primary: #1e40af; --gold: #fbbf24; --success: #10b981; }
+        .hero {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 4rem 2rem;
+            border-radius: 28px;
             text-align: center;
+            margin-bottom: 3rem;
         }
-        body.dark .analytics-card { background: #1e1e1e; }
-        .analytics-value {
-            font-size: 2.8rem;
+        .hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.8rem;
+            margin: 0 0 1rem;
+        }
+        .hero p { font-size: 1.4rem; opacity: 0.9; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            transition: all 0.4s;
+        }
+        .stat-card:hover { transform: translateY(-12px); }
+        body.dark .stat-card { background: #1e1e1e; }
+        .stat-value {
+            font-size: 3.5rem;
             font-weight: 800;
+            color: var(--primary);
             margin: 1rem 0;
-            color: #1e40af;
         }
-        body.dark .analytics-value { color: #60a5fa; }
-        .analytics-label { color: #64748b; font-size: 1.1rem; }
+        .stat-label { color: #64748b; font-size: 1.2rem; }
 
         .chart-container {
             background: white;
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            margin-bottom: 2rem;
+            padding: 3rem;
+            border-radius: 28px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.12);
+            margin: 3rem 0;
         }
         body.dark .chart-container { background: #1e1e1e; }
 
-        .top-list {
+        .properties-table {
             background: white;
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        }
-        body.dark .top-list { background: #1e1e1e; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 16px;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-            margin-top: 1rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
         }
-        body.dark table { background: #1e1e1e; }
-        th { background: #f8fafc; font-weight: 600; padding: 1rem; }
-        body.dark th { background: #334155; }
-        td { padding: 1rem; border-bottom: 1px solid #e2e8f0; }
+        body.dark .properties-table { background: #1e1e1e; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 1.5rem; font-weight: 700; color: var(--primary); }
+        body.dark th { background: #334155; color: #93c5fd; }
+        td { padding: 1.5rem; border-bottom: 1px solid #e2e8f0; }
         body.dark td { border-color: #334155; }
+        tr:hover { background: #f8fafc; }
+        body.dark tr:hover { background: #2d3748; }
 
-        .status-success { background: #d1fae5; color: #065f46; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.85rem; }
-        .status-failed { background: #fee2e2; color: #991b1b; }
-        .status-pending { background: #fef3c7; color: #92400e; }
+        .earned { color: var(--success); font-weight: 700; }
+        .btn { padding: 0.8rem 1.5rem; border-radius: 50px; text-decoration: none; font-weight: 600; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
     </style>
 </head>
 <body>
     <?php include '../inc/header.php'; ?>
-
     <div class="container">
         <?php include '../inc/sidebar.php'; ?>
 
         <main class="main-content">
-            <div class="page-header">
-                <h1>Transaction Analytics</h1>
-                <div style="display:flex; gap:1rem;">
-                    <select onchange="location.href='?period='+this.value" style="padding:0.8rem 1.2rem; border-radius:12px; border:2px solid #e2e8f0;">
-                        <option value="today" <?= $period==='today'?'selected':'' ?>>Today</option>
-                        <option value="7days" <?= $period==='7days'?'selected':'' ?>>Last 7 Days</option>
-                        <option value="30days" <?= $period==='30days'?'selected':'' ?>>Last 30 Days</option>
-                        <option value="custom" <?= $period==='custom'?'selected':'' ?>>Custom Range</option>
-                    </select>
+            <div class="hero">
+                <h1>My Properties & Earnings</h1>
+                <p>Welcome back, <strong><?= htmlspecialchars($admin_name) ?></strong> — Here's your personal performance</p>
+            </div>
+
+            <div style="text-align:center; margin-bottom:2rem;">
+                <select onchange="location.href='?period='+this.value" style="padding:1rem 2rem; border-radius:16px; border:2px solid var(--primary); font-size:1.1rem;">
+                    <option value="today" <?= $period==='today'?'selected':'' ?>>Today</option>
+                    <option value="7days" <?= $period==='7days'?'selected':'' ?>>Last 7 Days</option>
+                    <option value="30days" <?= $period==='30days'?'selected':'' ?>>Last 30 Days</option>
+                </select>
+            </div>
+
+            <!-- Personal Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">₦<?= number_format($stats['revenue']) ?></div>
+                    <div class="stat-label">My Total Earnings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value"><?= count($properties) ?></div>
+                    <div class="stat-label">My Properties</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value"><?= $stats['successful'] ?></div>
+                    <div class="stat-label">Successful Sales</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value"><?= $stats['total_txns'] ?></div>
+                    <div class="stat-label">Total Bookings</div>
                 </div>
             </div>
 
-            <!-- Summary Cards -->
-            <div class="analytics-grid">
-                <div class="analytics-card">
-                    <div class="analytics-value">₦<?= number_format($stats['revenue'] ?? 0) ?></div>
-                    <div class="analytics-label">Total Revenue</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-value"><?= $stats['total_txns'] ?? 0 ?></div>
-                    <div class="analytics-label">Total Transactions</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-value success"><?= $stats['successful'] ?? 0 ?></div>
-                    <div class="analytics-label">Successful</div>
-                </div>
-                <div class="analytics-card">
-                    <div class="analytics-value error"><?= $stats['failed'] ?? 0 ?></div>
-                    <div class="analytics-label">Failed</div>
-                </div>
-            </div>
-
-            <!-- Revenue Chart -->
+            <!-- Personal Revenue Chart -->
             <div class="chart-container">
-                <canvas id="revenueChart" height="100"></canvas>
+                <h2 style="text-align:center; margin-bottom:2rem; font-size:2.2rem; color:var(--primary);">
+                    My Earnings Trend (Last 30 Days)
+                </h2>
+                <canvas id="myRevenueChart"></canvas>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
-                <!-- Top Performing Properties -->
-                <div class="top-list">
-                    <h2>Top Properties by Revenue</h2>
-                    <?php if (empty($topProperties)): ?>
-                        <p style="color:#64748b; text-align:center; padding:2rem;">No sales in this period</p>
-                    <?php else: ?>
-                        <ol style="margin-top:1rem; font-size:1.1rem;">
-                            <?php foreach ($topProperties as $prop): ?>
-                                <li style="margin:1rem 0; padding:0.5rem 0; border-bottom:1px solid #e2e8f0;">
-                                    <strong><?= htmlspecialchars($prop['title']) ?></strong><br>
-                                    <small><?= $prop['bookings'] ?> bookings • ₦<?= number_format($prop['revenue']) ?></small>
-                                </li>
-                            <?php endforeach; ?>
-                        </ol>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Recent Transactions -->
-                <div class="top-list">
-                    <h2>Recent Transactions</h2>
+            <!-- My Properties List -->
+            <div class="properties-table">
+                <h2 style="padding:2rem; margin:0; background:var(--primary); color:white; font-size:1.8rem;">
+                    My Listed Properties
+                </h2>
+                <?php if (empty($properties)): ?>
+                    <p style="text-align:center; padding:4rem; color:#64748b; font-size:1.4rem;">
+                        You haven't listed any properties yet.<br>
+                        <a href="add_property.php" class="btn btn-primary" style="margin-top:1rem; display:inline-block;">
+                            List Your First Property
+                        </a>
+                    </p>
+                <?php else: ?>
                     <table>
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Client</th>
                                 <th>Property</th>
-                                <th>Amount</th>
-                                <th>Status</th>
+                                <th>Location</th>
+                                <th>Price</th>
+                                <th>Bookings</th>
+                                <th>Earned</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($transactions as $t): ?>
+                            <?php foreach ($properties as $p): ?>
                                 <tr>
-                                    <td><?= date('j M, g:ia', strtotime($t['created_at'])) ?></td>
-                                    <td><?= htmlspecialchars($t['client_name'] ?? 'Guest') ?></td>
-                                    <td><?= htmlspecialchars($t['property_title'] ?? 'N/A') ?></td>
-                                    <td><strong>₦<?= number_format($t['amount']) ?></strong></td>
-                                    <td><span class="status-<?= $t['status'] ?>"><?= ucfirst($t['status']) ?></span></td>
+                                    <td><strong><?= htmlspecialchars($p['title']) ?></strong></td>
+                                    <td><?= htmlspecialchars($p['location']) ?></td>
+                                    <td>₦<?= number_format($p['price']) ?></td>
+                                    <td><strong><?= $p['total_bookings'] ?></strong></td>
+                                    <td class="earned">₦<?= number_format($p['earned']) ?></td>
+                                    <td>
+                                        <a href="../property_detail.php?id=<?= $p['id'] ?>" class="btn btn-primary" target="_blank">View</a>
+                                        <a href="edit_property.php?id=<?= $p['id'] ?>" class="btn btn-success">Edit</a>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                </div>
+                <?php endif; ?>
             </div>
         </main>
     </div>
 
     <script>
-        // Revenue Chart (Daily)
-        const ctx = document.getElementById('revenueChart').getContext('2d');
+        // PERSONAL REVENUE CHART
+        const ctx = document.getElementById('myRevenueChart').getContext('2d');
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['7 days ago', '6 days ago', '5 days ago', '4 days ago', '3 days ago', '2 days ago', 'Yesterday', 'Today'],
+                labels: <?= json_encode($labels) ?>,
                 datasets: [{
-                    label: 'Daily Revenue (₦)',
-                    data: [12500000, 18900000, 15200000, 28000000, 31000000, 22500000, 19800000, 35200000],
-                    borderColor: '#1e40af',
-                    backgroundColor: 'rgba(30, 64, 175, 0.1)',
+                    label: 'My Daily Earnings (₦)',
+                    data: <?= json_encode($revenueValues) ?>,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    pointBackgroundColor: '#10b981',
+                    pointRadius: 7,
+                    pointHoverRadius: 12
                 }]
             },
             options: {
                 responsive: true,
-                plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: true } }
+                plugins: {
+                    legend: { position: 'top', labels: { font: { size: 16, weight: 'bold' } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => '₦' + Number(ctx.parsed.y).toLocaleString()
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => '₦' + value.toLocaleString() }
+                    }
+                }
             }
         });
     </script>

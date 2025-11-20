@@ -25,7 +25,7 @@ if (!$property) {
 // Fetch all images
 $images = $db->query("SELECT image_path FROM property_images WHERE property_id = $id ORDER BY is_featured DESC, id ASC")
     ->fetch_all(MYSQLI_ASSOC);
-$featured = $images[0]['image_path'] ?? 'default.jpg';
+$featured = $images[0]['image_path'] ?? 'default_property.png';
 ?>
 
 <!DOCTYPE html>
@@ -305,7 +305,8 @@ $featured = $images[0]['image_path'] ?? 'default.jpg';
                         <div class="gallery">
                             <?php foreach ($images as $img): ?>
                                 <img src="../assets/uploads/properties/<?= $img['image_path'] ?>" 
-                                     alt="Property Image" 
+                                     alt="Property Image"
+                                     onerror="this.src='../assets/uploads/properties/default_property.png'"
                                      onclick="document.getElementById('lightbox').style.display='flex'; 
                                               document.getElementById('lightboxImg').src=this.src">
                             <?php endforeach; ?>
@@ -351,8 +352,9 @@ $featured = $images[0]['image_path'] ?? 'default.jpg';
                 <!-- AGENT SIDEBAR -->
                 <div class="agent-card">
                     <h3 style="font-size:1.8rem; margin-bottom:2rem;">Listing Agent</h3>
-                    <img src="../assets/uploads/avatars/<?= $property['agent_photo'] ?: 'default.png' ?>" 
-                         class="agent-photo" alt="<?= htmlspecialchars($property['agent_name']) ?>">
+                    <img src="../assets/uploads/avatars/<?= $property['agent_photo'] ?: 'default_avatar.png' ?>" 
+                         class="agent-photo" alt="<?= htmlspecialchars($property['agent_name']) ?>"
+                         onerror="this.onerror=null; this.src='../assets/uploads/avatars/default_avatar.png';">
                     <h3 class="agent-name"><?= htmlspecialchars($property['agent_name']) ?></h3>
                     <p style="color:#64748b; margin:1rem 0;">Verified Real Estate Professional</p>
                     <p><strong>Phone:</strong> <?= $property['agent_phone'] ?: 'Not listed' ?></p>

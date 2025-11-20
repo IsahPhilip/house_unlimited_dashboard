@@ -61,3 +61,4 @@ Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
 users should be able to make payment for a property. Implement a logic and other process that follows afterwards.
+

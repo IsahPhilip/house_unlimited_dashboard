@@ -12,7 +12,7 @@ if (empty($reference)) {
 }
 
 // Prevent duplicate verification
-$stmt = $db->prepare("SELECT id FROM transactions WHERE payment_ref = ?");
+$stmt = $db->prepare("SELECT id FROM payments WHERE reference = ?");
 $stmt->bind_param('s', $reference);
 $stmt->execute();
 if ($stmt->get_result()->num_rows > 0) {
@@ -48,6 +48,7 @@ if ($result->status && $result->data->status === 'success') {
     $amount_ngn = $amount_kobo / 100;
     $email = $result->data->customer->email;
     $metadata = $result->data->metadata;
+    $paid_at = $result->data->paid_at;
 
     $user_id = $metadata->user_id ?? null;
     $property_id = $metadata->property_id ?? null;
@@ -62,15 +63,12 @@ if ($result->status && $result->data->status === 'success') {
     }
 
     if ($user_id) {
-        $stmt = $db->prepare("INSERT INTO transactions 
-            (user_id, property_id, amount, payment_ref, status, gateway, metadata) 
-            VALUES (?, ?, ?, ?, 'success', 'paystack', ?)");
-        $metadata_json = json_encode($metadata);
-        $stmt->bind_param('iisss', $user_id, $property_id, $amount_ngn, $reference, $metadata_json);
+        $stmt = $db->prepare("INSERT INTO payments 
+            (user_id, property_id, amount, reference, status, gateway, transaction_data, paid_at) 
+            VALUES (?, ?, ?, ?, 'success', 'paystack', ?, ?)");
+        $transaction_data_json = json_encode($result->data);
+        $stmt->bind_param('iisssss', $user_id, $property_id, $amount_ngn, $reference, $transaction_data_json, $paid_at);
         $stmt->execute();
-
-        // Optional: Auto-generate receipt PDF
-        // include '../api/generate_receipt.php?ref=' . $reference;
 
         echo json_encode(['success' => true, 'message' => 'Payment verified']);
     } else {
@@ -78,7 +76,7 @@ if ($result->status && $result->data->status === 'success') {
     }
 } else {
     // Log failed payment
-    $stmt = $db->prepare("INSERT INTO transactions (payment_ref, status, amount) VALUES (?, 'failed', 0)");
+    $stmt = $db->prepare("INSERT INTO payments (reference, status, amount) VALUES (?, 'failed', 0)");
     $stmt->bind_param('s', $reference);
     $stmt->execute();
 

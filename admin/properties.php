@@ -208,7 +208,7 @@ if ($_POST['action'] ?? '' && $_POST['property_id'] ?? 0) {
 
                     html += `
                     <tr data-status="${p.status}" data-type="${p.type}">
-                        <td><img src="../assets/uploads/properties/${p.featured_image}" class="property-thumb" alt="${p.title}"></td>
+                        <td><img src="../assets/uploads/properties/${p.featured_image}" onerror="this.src='../assets/uploads/properties/default_property.png'" class="property-thumb" alt="${p.title}"></td>
                         <td><strong>${p.title}</strong></td>
                         <td>${p.location}</td>
                         <td><strong>₦${Number(p.price).toLocaleString()}</strong></td>

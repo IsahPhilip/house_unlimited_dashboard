@@ -36,7 +36,7 @@ while ($row = $result->fetch_assoc()) {
         'created_at' => $row['created_at'],
         'property_title' => $row['property_title'] ?? 'General Payment',
         'property_location' => $row['property_location'] ?? '',
-        'property_image' => $row['property_image'] ?? 'default.jpg'
+        'property_image' => $row['property_image'] ?? 'default_property.png'
     ];
 }
 

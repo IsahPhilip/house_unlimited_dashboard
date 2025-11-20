@@ -225,6 +225,51 @@ $role = $user['role'];
             color: var(--gray-200);
             margin-bottom: 1rem;
         }
+
+        /* Filter Form Styles */
+        .filter-form {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.04);
+        }
+        body.dark .filter-form {
+            background: #1e1e1e;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+        }
+        .form-group {
+            flex: 1 1 180px;
+        }
+        .filter-form input,
+        .filter-form select {
+            width: 100%;
+            padding: 0.9rem 1.2rem;
+            border-radius: 50px;
+            border: 1px solid var(--gray-200);
+            background: var(--gray-100);
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+        body.dark .filter-form input,
+        body.dark .filter-form select {
+            background: #334155;
+            border-color: #475569;
+            color: var(--gray-800);
+        }
+        .filter-form input:focus,
+        .filter-form select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .filter-form .btn {
+            width: 100%;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -244,6 +289,39 @@ $role = $user['role'];
                 </div>
             </div>
 
+            <!-- Filter Form -->
+            <form id="filterForm" class="filter-form">
+                <div class="form-group">
+                    <input type="text" id="search" name="search" placeholder="Keyword (e.g. Lekki Phase 1)">
+                </div>
+                <div class="form-group">
+                    <select id="type" name="type">
+                        <option value="">Any Type</option>
+                        <option value="sale">For Sale</option>
+                        <option value="rent">For Rent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="number" id="minPrice" name="minPrice" placeholder="Min Price">
+                </div>
+                <div class="form-group">
+                    <input type="number" id="maxPrice" name="maxPrice" placeholder="Max Price">
+                </div>
+                <div class="form-group">
+                    <select id="bedrooms" name="bedrooms">
+                        <option value="">Any Beds</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5+</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+
             <div id="propertiesContainer" class="card-grid">
                 <div class="no-results">
                     <i class="fas fa-home"></i>
@@ -254,64 +332,95 @@ $role = $user['role'];
     </div>
 
     <script>
+        const filterForm = document.getElementById('filterForm');
+        const propertiesContainer = document.getElementById('propertiesContainer');
+
         async function loadProperties() {
-            const params = new URLSearchParams({
-                my_listings: <?= $role === 'agent' ? '1' : '0' ?>
-            });
-
-            const res = await fetch(`../api/properties.php?${params}`);
-            const data = await res.json();
-
-            let html = '';
-            if (data.properties.length === 0) {
-                html = `<div class="no-results">
-                    <i class="fas fa-search"></i>
-                    <h3>No properties found</h3>
-                    <p>Try adjusting your filters or add a new listing.</p>
-                </div>`;
-            } else {
-                data.properties.forEach(p => {
-                    const badge = p.type === 'sale' 
-                        ? '<span class="badge badge-sale">For Sale</span>' 
-                        : '<span class="badge badge-rent">For Rent</span>';
-                    const featured = p.featured ? '<span class="badge badge-featured">Featured</span>' : '';
-
-                    html += `
-                    <div class="property-card">
-                        <div class="property-img-wrapper">
-                            <img src="../assets/uploads/properties/${p.featured_image || 'default.jpg'}" 
-                                 alt="${p.title}" class="property-img">
-                            ${badge}
-                            ${featured}
-                        </div>
-                        <div class="property-info">
-                            <h3 class="property-title">${p.title}</h3>
-                            <div class="property-location">
-                                <i class="fas fa-map-marker-alt"></i> ${p.location}
-                            </div>
-                            <div class="property-price">₦${Number(p.price).toLocaleString()}</div>
-                            
-                            <div class="property-features">
-                                ${p.bedrooms ? `<div class="feature-item"><i class="fas fa-bed"></i> ${p.bedrooms} ${p.bedrooms > 1 ? 'Beds' : 'Bed'}</div>` : ''}
-                                ${p.bathrooms ? `<div class="feature-item"><i class="fas fa-bath"></i> ${p.bathrooms} Bath</div>` : ''}
-                                ${p.land_size ? `<div class="feature-item"><i class="fas fa-ruler-combined"></i> ${p.land_size} sqm</div>` : ''}
-                            </div>
-
-                            <div class="property-actions">
-                                <a href="property_detail.php?id=${p.id}" class="btn btn-primary">
-                                    <i class="fas fa-eye"></i> View Details
-                                </a>
-                                <a href="https://wa.me/2348030000000?text=Hi,%20I'm%20interested%20in%20${encodeURIComponent(p.title + ' in ' + p.location)}" 
-                                   target="_blank" class="btn btn-whatsapp">
-                                    <i class="fab fa-whatsapp"></i> WhatsApp
-                                </a>
-                            </div>
-                        </div>
-                    </div>`;
-                });
+            const formData = new FormData(filterForm);
+            const params = new URLSearchParams(formData);
+            
+            // Add my_listings parameter for agents
+            const my_listings = <?= $role === 'agent' ? '1' : '0' ?>;
+            if (my_listings) {
+                params.append('my_listings', '1');
             }
-            document.getElementById('propertiesContainer').innerHTML = html;
+
+            propertiesContainer.innerHTML = `<div class="no-results">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Searching for properties...</p>
+            </div>`;
+
+            try {
+                const res = await fetch(`../api/properties.php?${params}`);
+                const data = await res.json();
+
+                let html = '';
+                if (data.properties && data.properties.length === 0) {
+                    html = `<div class="no-results">
+                        <i class="fas fa-search"></i>
+                        <h3>No properties found</h3>
+                        <p>Try adjusting your filters or add a new listing.</p>
+                    </div>`;
+                } else if (data.properties) {
+                    data.properties.forEach(p => {
+                        const badge = p.type === 'sale' 
+                            ? '<span class="badge badge-sale">For Sale</span>' 
+                            : '<span class="badge badge-rent">For Rent</span>';
+                        const featured = p.featured ? '<span class="badge badge-featured">Featured</span>' : '';
+
+                        html += `
+                        <div class="property-card">
+                            <div class="property-img-wrapper">
+                                <img src="../assets/uploads/properties/${p.featured_.image || 'default_property.png'}" 
+                                     alt="${p.title}" class="property-img"
+                                     onerror="this.onerror=null; this.src='../assets/uploads/properties/default_property.png';">
+                                ${badge}
+                                ${featured}
+                            </div>
+                            <div class="property-info">
+                                <h3 class="property-title">${p.title}</h3>
+                                <div class="property-location">
+                                    <i class="fas fa-map-marker-alt"></i> ${p.location}
+                                </div>
+                                <div class="property-price">₦${Number(p.price).toLocaleString()}</div>
+                                
+                                <div class="property-features">
+                                    ${p.bedrooms ? `<div class="feature-item"><i class="fas fa-bed"></i> ${p.bedrooms} ${p.bedrooms > 1 ? 'Beds' : 'Bed'}</div>` : ''}
+                                    ${p.bathrooms ? `<div class="feature-item"><i class="fas fa-bath"></i> ${p.bathrooms} Bath</div>` : ''}
+                                    ${p.land_size ? `<div class="feature-item"><i class="fas fa-ruler-combined"></i> ${p.land_size} sqm</div>` : ''}
+                                </div>
+
+                                <div class="property-actions">
+                                    <a href="property_detail.php?id=${p.id}" class="btn btn-primary">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </a>
+                                    <a href="https://wa.me/2348030000000?text=Hi,%20I'm%20interested%20in%20${encodeURIComponent(p.title + ' in ' + p.location)}" 
+                                       target="_blank" class="btn btn-whatsapp">
+                                        <i class="fab fa-whatsapp"></i> WhatsApp
+                                    </a>
+                                    <a href="payment.php?id=${p.id}" class="btn btn-success">
+                                        <i class="fas fa-credit-card"></i> Pay Now
+                                    </a>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                }
+                propertiesContainer.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading properties:', error);
+                propertiesContainer.innerHTML = `<div class="no-results">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>An error occurred</h3>
+                    <p>Could not load properties. Please try again later.</p>
+                </div>`;
+            }
         }
+
+        filterForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            loadProperties();
+        });
 
         // Load on page load
         loadProperties();
