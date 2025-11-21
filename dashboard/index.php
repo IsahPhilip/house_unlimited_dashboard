@@ -202,7 +202,15 @@ $role = $user['role'];
 
                 feed.innerHTML = ''; // Clear loading state
 
-                if (activities.length === 0) {
+                if (activities.error) {
+                    const li = document.createElement('li');
+                    li.className = 'activity-item';
+                    li.innerHTML = `<div>Error: ${activities.error}</div>`;
+                    feed.appendChild(li);
+                    return;
+                }
+
+                if (!Array.isArray(activities) || activities.length === 0) {
                     const li = document.createElement('li');
                     li.className = 'activity-item';
                     li.innerHTML = '<div>No recent activity.</div>';
