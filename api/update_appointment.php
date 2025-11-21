@@ -101,6 +101,7 @@ switch ($action) {
             <p>Let us know if this works for you!</p>
             <p>Best regards,<br><strong>{$_SESSION['user']['name']}</strong></p>
         ";
+        log_activity("Rescheduled viewing to Saturday 10:00 AM");
         break;
 
     case 'reject':

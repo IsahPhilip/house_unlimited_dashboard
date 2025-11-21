@@ -8,20 +8,23 @@ if ($_SESSION['user']['role'] !== 'admin') {
     exit;
 }
 
-// Handle actions: approve, reject, delete
+// Handle actions: approve, reject, delete, feature
 if ($_POST['action'] ?? '' && $_POST['property_id'] ?? 0) {
     $id = (int)$_POST['property_id'];
     $action = $_POST['action'];
 
-    if (in_array($action, ['approve', 'reject', 'delete'])) {
+    if (in_array($action, ['approve', 'reject', 'delete', 'feature'])) {
         if ($action === 'delete') {
             $db->query("DELETE FROM property_images WHERE property_id = $id");
             $db->query("DELETE FROM properties WHERE id = $id");
+        } elseif ($action === 'feature') {
+            $db->query("UPDATE properties SET featured = 1 WHERE id = $id");
+            log_activity("Featured property on homepage");
         } else {
             $status = $action === 'approve' ? 'active' : 'rejected';
             $db->query("UPDATE properties SET status = '$status' WHERE id = $id");
         }
-        log_activity("Admin $action" . "d property ID #$id");
+        log_activity("Admin " . $action . "d property ID #$id");
         header('Location: properties.php?success=1');
         exit;
     }

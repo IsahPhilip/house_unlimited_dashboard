@@ -85,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $success = true;
+            log_activity("Listed a new property: " . $title);
         } else {
             $errors[] = "Failed to save property. Try again.";
         }

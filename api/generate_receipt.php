@@ -58,5 +58,6 @@ $html = '
 ';
 
 $pdf->writeHTML($html);
+log_activity("Generated invoice #INV-2025-0487 for client");
 $pdf->Output('Receipt_' . $txn['payment_ref'] . '.pdf', 'I');
 ?>

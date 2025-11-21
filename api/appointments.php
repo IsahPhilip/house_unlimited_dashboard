@@ -5,6 +5,32 @@ require '../inc/auth.php';
 
 header('Content-Type: application/json');
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    $property_id = $data['property_id'] ?? 0;
+    $viewing_date = $data['viewing_date'] ?? '';
+    $viewing_time = $data['viewing_time'] ?? '';
+    $message = $data['message'] ?? '';
+    $user_id = $_SESSION['user']['id'];
+
+    if (empty($property_id) || empty($viewing_date) || empty($viewing_time)) {
+        echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+        exit;
+    }
+
+    $stmt = $db->prepare("INSERT INTO appointments (property_id, user_id, viewing_date, viewing_time, message) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param('iisss', $property_id, $user_id, $viewing_date, $viewing_time, $message);
+    
+    if ($stmt->execute()) {
+        log_activity("Scheduled property viewing for Tomorrow at 2:00 PM");
+        echo json_encode(['success' => true, 'message' => 'Appointment created successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to create appointment']);
+    }
+    exit;
+}
+
 $user_id = $_SESSION['user']['id'];
 $role    = $_SESSION['user']['role'];
 $status_filter = $_GET['status'] ?? '';

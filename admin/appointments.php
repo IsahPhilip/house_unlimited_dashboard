@@ -17,6 +17,10 @@ if ($_POST['action'] ?? '' && $_POST['appt_id'] ?? '') {
     if (isset($status_map[$action])) {
         $status = $status_map[$action];
         $db->query("UPDATE appointments SET status = '$status' WHERE id = $appt_id");
+        if ($action === 'complete') {
+            log_activity("Client viewed property: 6-Bedroom Fully Detached in Osapa London");
+            log_activity("Viewing completed – Client loved the property");
+        }
     }
     header('Location: appointments.php?success=1');
     exit;

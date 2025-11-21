@@ -1,13 +1,11 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 require '../inc/config.php';
 require '../inc/auth.php';
 
 header('Content-Type: application/json');
 
 
-$user_id = $_SESSION['user_id'];
+$user_id = $_SESSION['user']['id'] ?? 0;
 $role = $_SESSION['user']['role'];
 
 try {

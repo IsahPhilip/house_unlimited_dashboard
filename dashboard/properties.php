@@ -371,7 +371,7 @@ $role = $user['role'];
                         html += `
                         <div class="property-card">
                             <div class="property-img-wrapper">
-                                <img src="../assets/uploads/properties/${p.featured_.image || 'default_property.png'}" 
+                                <img src="../assets/uploads/properties/${(p.featured_ && p.featured_.image) || 'default_property.png'}" 
                                      alt="${p.title}" class="property-img"
                                      onerror="this.onerror=null; this.src='../assets/uploads/properties/default_property.png';">
                                 ${badge}

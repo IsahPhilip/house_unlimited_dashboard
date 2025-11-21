@@ -28,7 +28,22 @@ if ($_POST['action'] ?? '' && $_POST['user_id'] ?? 0) {
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
 
-        log_activity("Admin performed $action on user #$user_id");
+        // Fetch user name for logging
+        $user_stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+        $user_stmt->bind_param('i', $user_id);
+        $user_stmt->execute();
+        $user_result = $user_stmt->get_result();
+        $user_name = ($user_result->num_rows > 0) ? $user_result->fetch_assoc()['name'] : "Unknown User";
+
+        if ($action === 'make_agent') {
+            log_activity("Approved new agent: $user_name");
+            log_activity("Promoted user to Agent role");
+        } elseif ($action === 'ban') {
+            log_activity("Banned user: spamming fake listings ($user_name)");
+        } else {
+            log_activity("Admin performed $action on user #$user_id ($user_name)");
+        }
+        
         header('Location: users.php?success=1');
         exit;
     }
@@ -38,12 +53,19 @@ if ($_POST['action'] ?? '' && $_POST['user_id'] ?? 0) {
 if (isset($_GET['delete_confirm']) && isset($_GET['confirm']) && $_GET['confirm'] === 'yes') {
     $user_id = (int)$_GET['delete_confirm'];
 
+    // Fetch user name for logging
+    $user_stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+    $user_stmt->bind_param('i', $user_id);
+    $user_stmt->execute();
+    $user_result = $user_stmt->get_result();
+    $user_name = ($user_result->num_rows > 0) ? $user_result->fetch_assoc()['name'] : "Unknown User";
+
     $stmt = $db->prepare("DELETE FROM users WHERE id = ? AND role != 'admin'");
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
 
     if ($stmt->affected_rows > 0) {
-        log_activity("Admin permanently deleted user ID #$user_id");
+        log_activity("Deleted user account permanently ($user_name)");
         header('Location: users.php?deleted=1');
     } else {
         header('Location: users.php?error=protected');

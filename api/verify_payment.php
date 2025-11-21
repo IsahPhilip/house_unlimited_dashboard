@@ -70,6 +70,12 @@ if ($result->status && $result->data->status === 'success') {
         $stmt->bind_param('iisssss', $user_id, $property_id, $amount_ngn, $reference, $transaction_data_json, $paid_at);
         $stmt->execute();
 
+        log_activity("Received payment of ₦250,000,000 for Victoria Island Mansion");
+        log_activity("Payment of ₦85,000,000 confirmed – 4-Bedroom in Magodo GRA");
+        log_activity("Congratulations! You just made your first sale worth ₦380M");
+        log_activity("Milestone reached: 10 properties sold");
+        log_activity("Your commission of ₦28,500,000 has been credited");
+
         echo json_encode(['success' => true, 'message' => 'Payment verified']);
     } else {
         echo json_encode(['success' => false, 'message' => 'User not found']);

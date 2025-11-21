@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Invalid Nigerian phone number (e.g. 0803 000 0000 or +2348030000000)";
     } else {
         // Handle avatar upload
-        $avatar_path = $user['photo'] ?? 'default.png';
+        $avatar_path = $user['photo'] ?? 'default_avatar.png';
         if (isset($_FILES['photo']) && $_FILES['photo']['error'] === 0) {
             $allowed = ['jpg', 'jpeg', 'png', 'webp'];
             $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upload_path = "../assets/uploads/avatars/" . $new_name;
                 if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
                     // Delete old avatar if not default
-                    if ($avatar_path && $avatar_path !== 'default.png' && file_exists("../assets/uploads/avatars/$avatar_path")) {
+                    if ($avatar_path && $avatar_path !== 'default_avatar.png' && file_exists("../assets/uploads/avatars/$avatar_path")) {
                         unlink("../assets/uploads/avatars/$avatar_path");
                     }
                     $avatar_path = $new_name;
@@ -216,13 +216,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <form method="POST" enctype="multipart/form-data" class="profile-form">
                     <div class="avatar-wrapper">
-                        <img src="../assets/uploads/avatars/<?= $user['photo'] ?? 'default.png' ?>" 
+                        <?php
+                            // Determine the correct avatar URL, falling back to default if not found
+                            $avatar_url = '../assets/uploads/avatars/default_avatar.png'; // Default
+                            if (!empty($user['photo'])) {
+                                $user_avatar_path = '../assets/uploads/avatars/' . basename($user['photo']);
+                                if (file_exists($user_avatar_path)) {
+                                    $avatar_url = $user_avatar_path;
+                                }
+                            }
+                        ?>
+                        <img src="<?= htmlspecialchars($avatar_url) ?>" 
                              alt="Profile Photo" class="avatar" id="avatarPreview">
-                        <label class="avatar-upload">
-                            Camera
-                            <input type="file" name="photo" accept="image/*" onchange="previewAvatar(event)">
-                        </label>
-                    </div>
+                            <label class="avatar-upload">
+                                <i class="fas fa-camera"></i>
+                                <input type="file" name="photo" accept="image/*" onchange="previewAvatar(event)">
+                            </label>                    </div>
 
                     <div class="form-grid">
                         <div class="form-group">
