@@ -37,7 +37,7 @@ $stmt = $db->prepare("
            u.email,
            pr.title AS property_title,
            pr.location AS property_location
-    FROM payments p
+    FROM transactions p
     LEFT JOIN users u ON p.user_id = u.id
     LEFT JOIN properties pr ON p.property_id = pr.id
     WHERE p.id = ?
@@ -77,7 +77,7 @@ $log_message = match ($new_status) {
 };
 
 // Update the payment status
-$stmt = $db->prepare("UPDATE payments SET status = ?, updated_at = NOW() WHERE id = ?");
+$stmt = $db->prepare("UPDATE transactions SET status = ?, updated_at = NOW() WHERE id = ?");
 $stmt->bind_param('si', $new_status, $payment_id);
 
 if ($stmt->execute() && $stmt->affected_rows > 0) {

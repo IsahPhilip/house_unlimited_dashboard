@@ -169,6 +169,7 @@ if (isset($_GET['delete_confirm']) && isset($_GET['confirm']) && $_GET['confirm'
         .btn-unban { background: #10b981; color: white; }
         .btn-agent { background: #3b82f6; color: white; }
         .btn-client { background: #64748b; color: white; }
+        .btn-payment { background: #22c55e; color: white; }
         .btn-delete { background: #991b1b; color: white; }
 
         .no-users {
@@ -332,6 +333,7 @@ if (isset($_GET['delete_confirm']) && isset($_GET['confirm']) && $_GET['confirm'
                                     `<button type="submit" name="action" value="make_client" class="action-btn btn-client">Make Client</button>` : ''
                                 }
                             </form>
+                            <a href="record_payment.php?user_id=${u.id}" class="action-btn btn-payment">Record Payment</a>
                             <a href="?delete_confirm=${u.id}" class="action-btn btn-delete">Delete</a>
                         </div>
                         `}

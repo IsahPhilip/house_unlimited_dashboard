@@ -250,7 +250,7 @@ $role = $user['role'];
                     <td><span class="status ${t.status}">${t.status}</span></td>
                     <td>
                         ${t.status === 'success' 
-                            ? `<a href="../api/generate_receipt.php?id=${t.id}" target="_blank" class="receipt-btn">Receipt</a>`
+                            ? `<a href="../api/generate_receipt.php?payment_id=${t.id}" target="_blank" class="receipt-btn">Receipt</a>`
                             : '<em>Awaiting confirmation</em>'
                         }
                     </td>

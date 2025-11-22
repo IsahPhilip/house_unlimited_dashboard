@@ -27,24 +27,28 @@ if (isset($_POST['magic_login'])) {
 
         $magic_link = BASE_URL . "/authenticate.php?token=" . $token;
 
-        // === SEND EMAIL (Resend) ===
-        $subject = 'Your Magic Login Link';
+        // === SEND EMAIL (using PHPMailer) ===
+        $subject = 'Your Magic Login Link to ' . SITE_NAME;
         $body = "
-            <h2>Welcome back, {$user['name']}!</h2>
-            <p>Click below to log in instantly:</p>
-            <p><a href='$magic_link' style='padding:15px 30px; background:#1e40af; color:white; text-decoration:none; border-radius:8px; font-weight:bold;'>Login to Dashboard</a></p>
-            <p>Or copy: <code>$magic_link</code></p>
-            <p><small>Link expires in 15 minutes.</small></p>
+            <div style='font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
+                <h2 style='color: #333;'>Welcome back, {$user['name']}!</h2>
+                <p>Click the button below to securely log in to your dashboard. This link is only valid for the next 15 minutes.</p>
+                <p style='text-align: center;'>
+                    <a href='$magic_link' style='display: inline-block; padding: 15px 30px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;'>Login to Your Dashboard</a>
+                </p>
+                <p>If you can't click the button, you can copy and paste this link into your browser:</p>
+                <p><code>$magic_link</code></p>
+                <hr>
+                <p style='font-size: 12px; color: #888;'>If you did not request this, you can safely ignore this email.</p>
+            </div>
         ";
-
+        
         if (send_email($email, $subject, $body)) {
             header('Location: login.php?success=1&email=' . urlencode($email));
             exit;
         } else {
-            // Production-ready error handling
-            // Log the detailed error for the admin to see, but show a generic message to the user.
-            error_log("Resend Error: Could not send email.");
-            header('Location: login.php?error=' . urlencode('Could not send login link. Please contact support.') . '&email=' . urlencode($email));
+            error_log("Magic link email failed to send to {$email}");
+            header('Location: login.php?error=' . urlencode('We could not send the login link. Please try again or contact support.') . '&email=' . urlencode($email));
             exit;
         }
     } else {

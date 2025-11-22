@@ -3,13 +3,21 @@ require '../inc/config.php';
 require '../inc/auth.php';
 
 $user_id = $_SESSION['user']['id'];
-$referral_code = base64_encode('ref=' . $user_id);
+
+// Fetch the referral_code from the database for the current user
+$stmt_code = $db->prepare("SELECT referral_code FROM users WHERE id = ?");
+$stmt_code->bind_param('i', $user_id);
+$stmt_code->execute();
+$result_code = $stmt_code->get_result();
+$user_data = $result_code->fetch_assoc();
+$referral_code = $user_data['referral_code'] ?? ''; // Fallback if no code found
+$stmt_code->close();
 $referral_link = 'http://' . $_SERVER['HTTP_HOST'] . '/register.php?ref=' . $referral_code;
 
 // Fetch referral data
 $stmt = $db->prepare("
     SELECT 
-        u.username AS referee_name,
+        u.name AS referee_name,
         u.created_at AS signup_date,
         r.status
     FROM referrals r

@@ -13,7 +13,7 @@ if (empty($reference)) {
 }
 
 // Prevent duplicate processing
-$stmt = $db->prepare("SELECT id FROM payments WHERE reference = ? AND status = 'success'");
+$stmt = $db->prepare("SELECT id FROM transactions WHERE reference = ? AND status = 'success'");
 $stmt->bind_param('s', $reference);
 $stmt->execute();
 if ($stmt->get_result()->num_rows > 0) {
@@ -44,7 +44,7 @@ $result = json_decode($response, false);
 
 if (!$result?->status || $result->data->status !== 'success') {
     // Log failed attempt
-    $stmt = $db->prepare("INSERT INTO payments (reference, status, amount) VALUES (?, 'failed', 0) ON DUPLICATE KEY UPDATE status = 'failed'");
+    $stmt = $db->prepare("INSERT INTO transactions (reference, status, amount, gateway) VALUES (?, 'failed', 0, 'paystack') ON DUPLICATE KEY UPDATE status = 'failed'");
     $stmt->bind_param('s', $reference);
     $stmt->execute();
     echo json_encode(['success' => false, 'message' => 'Payment failed or invalid']);
@@ -106,7 +106,7 @@ log_activity("New sale confirmed – $formatted_amount received on $paid_date");
 
 // Insert into payments table
 $stmt = $db->prepare("
-    INSERT INTO payments 
+    INSERT INTO transactions 
     (user_id, property_id, amount, reference, status, gateway, transaction_data, paid_at) 
     VALUES (?, ?, ?, ?, 'success', 'paystack', ?, ?)
 ");
@@ -114,6 +114,11 @@ $transaction_json = json_encode($result->data);
 $stmt->bind_param('iissss', $user_id, $property_id, $amount_ngn, $reference, $transaction_json, $paid_at);
 
 if ($stmt->execute()) {
+    // Call the referral completion function for the referee
+    if ($user_id) { // $user_id here is the referee_id
+        process_referral_completion($user_id, $amount_ngn);
+    }
+
     echo json_encode([
         'success' => true,
         'message' => 'Payment verified and recorded',

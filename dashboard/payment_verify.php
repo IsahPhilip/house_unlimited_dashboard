@@ -30,7 +30,7 @@ if ($res->status && $res->data->status === 'success') {
     $amount = $res->data->amount / 100;
 
     // Record purchase
-    $stmt = $db->prepare("INSERT INTO purchases (user_id, property_id, amount, transaction_ref, status) VALUES (?, ?, ?, ?, 'completed')");
+    $stmt = $db->prepare("INSERT INTO transactions (user_id, property_id, amount, reference, status, gateway) VALUES (?, ?, ?, ?, 'success', 'paystack')");
     $stmt->bind_param('iids', $user_id, $property_id, $amount, $ref);
     $stmt->execute();
 

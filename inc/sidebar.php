@@ -8,6 +8,7 @@ function icon($name) {
         'properties'    => '<i class="fa-solid fa-building"></i>',
         'my-properties' => '<i class="fa-solid fa-house-user"></i>',
         'appointments'  => '<i class="fa-solid fa-calendar-check"></i>',
+        'withdrawals'   => '<i class="fa-solid fa-money-bill-transfer"></i>',
         'messages'      => '<i class="fa-solid fa-comments"></i>',
         'documents'     => '<i class="fa-solid fa-file-lines"></i>',
         'payments'      => '<i class="fa-solid fa-credit-card"></i>',
@@ -16,6 +17,8 @@ function icon($name) {
         'admin'         => '<i class="fa-solid fa-shield-halved"></i>',
         'users'         => '<i class="fa-solid fa-users"></i>',
         'referrals'     => '<i class="fa-solid fa-users-line"></i>',
+        'wallet'        => '<i class="fa-solid fa-wallet"></i>',
+        'settings'      => '<i class="fa-solid fa-gear"></i>',
     ];
     return $icons[$name] ?? '';
 }
@@ -76,6 +79,9 @@ $is_active = fn($pages) => in_array($page, (array)$pages) ? 'active' : '';
             <li><a href="referrals.php" class="<?= $is_active('referrals.php') ?>">
                 <?= icon('referrals') ?><span>Referrals</span>
             </a></li>
+            <li><a href="wallet.php" class="<?= $is_active('wallet.php') ?>">
+                <?= icon('wallet') ?><span>Wallet</span>
+            </a></li>
         </ul>
 
         <?php if (in_array($user['role'], ['admin', 'agent'])): ?>
@@ -96,6 +102,12 @@ $is_active = fn($pages) => in_array($page, (array)$pages) ? 'active' : '';
                 </a></li>
                 <li><a href="../admin/appointments.php">
                     <?= icon('appointments') ?><span>All Appointments</span>
+                </a></li>
+                <li><a href="../admin/withdrawals.php">
+                    <?= icon('withdrawals') ?><span>Withdrawals</span>
+                </a></li>
+                <li><a href="../admin/settings.php">
+                    <?= icon('settings') ?><span>Settings</span>
                 </a></li>
                 <?php endif; ?>
 
@@ -140,7 +152,6 @@ $is_active = fn($pages) => in_array($page, (array)$pages) ? 'active' : '';
 }
 
 .sidebar-header {
-    padding: 2rem 1.5rem;
     text-align: center;
     display: flex;
     flex-direction: column;

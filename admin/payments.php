@@ -54,7 +54,7 @@ $sql = "SELECT
             u.email as client_email,
             prop.title as property_title,
             a.name as agent_name
-        FROM payments p
+        FROM transactions p
         LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN properties prop ON p.property_id = prop.id
         LEFT JOIN users a ON prop.agent_id = a.id
@@ -72,8 +72,8 @@ $result = $stmt->get_result();
 $payments = $result->fetch_all(MYSQLI_ASSOC);
 
 // Total revenue
-$totalRevenue = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'success'")->fetch_assoc()['total'];
-$totalToday = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'success' AND DATE(created_at) = CURDATE()")->fetch_assoc()['total'];
+$totalRevenue = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE status = 'success'")->fetch_assoc()['total'];
+$totalToday = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE status = 'success' AND DATE(created_at) = CURDATE()")->fetch_assoc()['total'];
 ?>
 
 <!DOCTYPE html>
@@ -81,7 +81,7 @@ $totalToday = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM payments
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payments • Admin • House Unlimited</title>
+    <title>Transactions • Admin • House Unlimited</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         .stats-grid {
@@ -166,7 +166,7 @@ $totalToday = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM payments
 
         <main class="main-content">
             <div class="page-header">
-                <h1>Payment Dashboard</h1>
+                <h1>Transaction Dashboard</h1>
                 <button onclick="exportPayments()" class="btn btn-success">Export to CSV</button>
             </div>
 
@@ -200,7 +200,7 @@ $totalToday = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM payments
                 <button onclick="applyFilters()" class="btn btn-primary">Apply Filters</button>
             </div>
 
-            <!-- Payments Table -->
+            <!-- Transactions Table -->
             <table>
                 <thead>
                     <tr>
@@ -215,7 +215,7 @@ $totalToday = $db->query("SELECT COALESCE(SUM(amount), 0) as total FROM payments
                 </thead>
                 <tbody>
                     <?php if (empty($payments)): ?>
-                        <tr><td colspan="7" style="text-align:center; padding:3rem; color:#64748b;">No payments found</td></tr>
+                        <tr><td colspan="7" style="text-align:center; padding:3rem; color:#64748b;">No transactions found</td></tr>
                     <?php else: foreach ($payments as $p): ?>
                         <tr>
                             <td><?= date('j M Y, g:ia', strtotime($p['created_at'])) ?></td>

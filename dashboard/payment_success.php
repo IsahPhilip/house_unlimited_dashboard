@@ -14,8 +14,8 @@ $payment_id = $_GET['payment_id'];
 
 // Fetch payment details
 $stmt = $db->prepare("
-    SELECT p.id, pr.title, p.amount, p.payment_date
-    FROM payments p
+    SELECT p.id, pr.title, p.amount, p.created_at as payment_date
+    FROM transactions p
     JOIN properties pr ON p.property_id = pr.id
     WHERE p.id = ?
 ");

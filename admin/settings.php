@@ -44,8 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $allowed = ['png', 'jpg', 'jpeg', 'webp'];
         $ext = strtolower(pathinfo($_FILES['site_logo']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, $allowed) && $_FILES['site_logo']['size'] < 2*1024*1024) {
-            $filename = 'logo.' . $ext;
-            move_uploaded_file($_FILES['site_logo']['tmp_name'], "../assets/img/" . $filename);
+            $filename = 'logo.' . strtolower($ext);
+            $target_dir = "../assets/img/";
+            if (!file_exists($target_dir)) {
+                mkdir($target_dir, 0777, true);
+            }
+            move_uploaded_file($_FILES['site_logo']['tmp_name'], $target_dir . $filename);
             $db->query("INSERT INTO system_settings (setting_key, setting_value) VALUES ('site_logo', '$filename') ON DUPLICATE KEY UPDATE setting_value = '$filename'");
         }
     }

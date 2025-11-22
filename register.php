@@ -6,14 +6,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
     $phone = trim($_POST['phone'] ?? '');
-    $referral_code = trim($_POST['referral_code'] ?? '');
+    $incoming_referral_code = trim($_POST['referral_code'] ?? ''); // Use a different variable name to avoid confusion
     $referrer_id = null;
+    $new_user_referral_code = generateUniqueReferralCode($db); // Generate code for the new user
 
-    if (!empty($referral_code)) {
-        $decoded = base64_decode($referral_code);
-        if (strpos($decoded, 'ref=') === 0) {
-            $referrer_id = (int)str_replace('ref=', '', $decoded);
+    if (!empty($incoming_referral_code)) {
+        // Look up the referrer's ID based on the incoming referral code
+        $stmt = $db->prepare("SELECT id FROM users WHERE referral_code = ?");
+        $stmt->bind_param('s', $incoming_referral_code);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            $referrer = $result->fetch_assoc();
+            $referrer_id = $referrer['id'];
         }
+        $stmt->close();
     }
 
     // Check if exists
@@ -23,8 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt->get_result()->num_rows > 0) {
         $error = "Email already registered";
     } else {
-        $stmt = $db->prepare("INSERT INTO users (name, email, phone, role, referrer_id) VALUES (?, ?, ?, 'client', ?)");
-        $stmt->bind_param('ssss', $name, $email, $phone, $referrer_id);
+        $stmt = $db->prepare("INSERT INTO users (name, email, phone, referral_code, role, referrer_id) VALUES (?, ?, ?, ?, 'client', ?)");
+        $stmt->bind_param('ssssi', $name, $email, $phone, $new_user_referral_code, $referrer_id);
         $stmt->execute();
         $new_user_id = $stmt->insert_id;
 
