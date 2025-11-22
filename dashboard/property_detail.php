@@ -246,6 +246,64 @@ $featured = $images[0]['image_path'] ?? 'default_property.png';
             box-shadow: 0 20px 40px rgba(37,211,102,0.5);
         }
 
+        /* Form Styling for Appointment */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        body.dark .form-group label {
+            color: var(--light);
+        }
+        .form-group input[type="date"],
+        .form-group input[type="time"],
+        .form-group textarea {
+            padding: 0.8rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: white;
+            color: var(--dark);
+        }
+        body.dark .form-group input[type="date"],
+        body.dark .form-group input[type="time"],
+        body.dark .form-group textarea {
+            background: #2d3748;
+            border-color: #4a5568;
+            color: var(--light);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .btn.btn-primary {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            width: 100%;
+        }
+        .btn.btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
         /* LIGHTBOX */
         #lightbox {
             display: none;
@@ -374,6 +432,37 @@ $featured = $images[0]['image_path'] ?? 'default_property.png';
                             </form>
                             <div id="payment-message" style="margin-top: 1rem; color: red;"></div>
                         </div>
+
+                        <div style="margin-top:2rem; padding-top:2rem; border-top:1px solid #e2e8f0;">
+                            <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">Schedule a Viewing</h3>
+                            <button id="scheduleViewingBtn" class="btn-whatsapp" style="background:#0d9488; box-shadow:0 10px 30px rgba(13,148,136,0.4);">
+                                <i class="fas fa-calendar-alt"></i>
+                                Schedule an In-App Viewing
+                            </button>
+
+                            <div id="scheduleFormContainer" style="display:none; margin-top:1.5rem; background:#f8fafc; padding:1.5rem; border-radius:16px; box-shadow:0 8px 20px rgba(0,0,0,0.05);">
+                                <h4 style="font-size:1.2rem; margin-bottom:1rem;">Book Your Viewing</h4>
+                                <form id="appointmentForm" class="form-grid">
+                                    <input type="hidden" name="property_id" value="<?= $id ?>">
+                                    <div class="form-group">
+                                        <label for="viewing_date">Preferred Date:</label>
+                                        <input type="date" id="viewing_date" name="viewing_date" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="viewing_time">Preferred Time:</label>
+                                        <input type="time" id="viewing_time" name="viewing_time" required>
+                                    </div>
+                                    <div class="form-group full-width">
+                                        <label for="message">Message (optional):</label>
+                                        <textarea id="message" name="message" rows="4"></textarea>
+                                    </div>
+                                    <div class="form-group full-width">
+                                        <button type="submit" class="btn btn-primary">Submit Appointment</button>
+                                    </div>
+                                </form>
+                                <div id="appointment-message" style="margin-top:1rem;"></div>
+                            </div>
+                        </div>
                     <?php endif; ?>
 
                     <?php if (in_array($_SESSION['user']['role'], ['admin','agent']) && $_SESSION['user']['id'] == $property['agent_id']): ?>
@@ -399,5 +488,61 @@ $featured = $images[0]['image_path'] ?? 'default_property.png';
         <img id="lightboxImg" src="" alt="Full View">
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const scheduleViewingBtn = document.getElementById('scheduleViewingBtn');
+            const scheduleFormContainer = document.getElementById('scheduleFormContainer');
+            const appointmentForm = document.getElementById('appointmentForm');
+            const appointmentMessage = document.getElementById('appointment-message');
+
+            if (scheduleViewingBtn && scheduleFormContainer) {
+                scheduleViewingBtn.addEventListener('click', () => {
+                    if (scheduleFormContainer.style.display === 'none') {
+                        scheduleFormContainer.style.display = 'block';
+                        scheduleViewingBtn.textContent = 'Hide Scheduling Form';
+                    } else {
+                        scheduleFormContainer.style.display = 'none';
+                        scheduleViewingBtn.textContent = 'Schedule an In-App Viewing';
+                    }
+                });
+            }
+
+            if (appointmentForm) {
+                appointmentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    const formData = new FormData(appointmentForm);
+                    const data = Object.fromEntries(formData.entries());
+
+                    appointmentMessage.innerHTML = '<p style="color:#0d9488;">Submitting your appointment...</p>';
+
+                    try {
+                        const response = await fetch('../api/appointments.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            appointmentMessage.innerHTML = '<p style="color:#065f46;font-weight:600;">' + result.message + '</p>';
+                            appointmentForm.reset();
+                            // Optionally hide the form after successful submission
+                            scheduleFormContainer.style.display = 'none';
+                            scheduleViewingBtn.textContent = 'Schedule an In-App Viewing';
+                        } else {
+                            appointmentMessage.innerHTML = '<p style="color:#ef4444;font-weight:600;">' + result.message + '</p>';
+                        }
+                    } catch (error) {
+                        console.error('Error scheduling appointment:', error);
+                        appointmentMessage.innerHTML = '<p style="color:#ef4444;font-weight:600;">An unexpected error occurred. Please try again.</p>';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

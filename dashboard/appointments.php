@@ -84,16 +84,16 @@ $role = $user['role'];
 
             try {
                 const res = await fetch(url);
-                const apps = await res.json();
+                const result = await res.json(); // Change 'apps' to 'result' for clarity
 
                 let html = '';
-                if (apps.length === 0) {
+                if (!result.success || result.data.length === 0) { // Check for success and data length
                     html = `<tr><td colspan="5" style="text-align:center; padding:4rem; color:#64748b;">
                         <h3>No appointments found</h3>
                         <p>${'<?= $role === "client" ? "Browse properties and book a viewing!" : "No client requests yet." ?>'}</p>
                     </td></tr>`;
                 } else {
-                    apps.forEach(a => {
+                    result.data.forEach(a => { // Iterate over result.data
                         const date = new Date(a.appointment_date + ' ' + a.appointment_time);
                         const formatted = date.toLocaleDateString('en-NG', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) 
                                         + ' at ' + date.toLocaleTimeString('en-NG', { hour:'numeric', minute:'2-digit' });
@@ -106,7 +106,7 @@ $role = $user['role'];
                             <td><strong>${formatted}</strong></td>
                             <td>
                                 <div style="display:flex; align-items:center; gap:1rem;">
-                                    <img src="../assets/uploads/properties/${a.property_image}" class="property-thumb" alt="">
+                                    <img src="../assets/uploads/properties/${(a.property_image) || 'default_property.png'}" class="property-thumb" alt="" onerror="this.onerror=null; this.src='../assets/uploads/properties/default_property.png';">
                                     <div>
                                         <strong>${a.property_title}</strong><br>
                                         <small>${a.property_location}</small>
@@ -116,13 +116,32 @@ $role = $user['role'];
                             <td><strong>${a.counterparty_name}</strong><br><small>${a.counterparty_phone || '—'}</small></td>
                             <td><span class="status ${a.status}">${a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span></td>
                             <td>
-                                ${a.status === 'confirmed' ? `
-                                <a href="https://wa.me/${phone}?text=Hi!%20Just%20confirming%20our%20appointment%20for%20${encodeURIComponent(a.property_title)}%20on%20${encodeURIComponent(formatted)}" 
-                                   target="_blank" class="whatsapp-reminder">
-                                    <img src="../assets/img/whatsapp-white.png"> Remind on WhatsApp
-                                </a>` : ''}
-                                ${a.status === 'completed' ? '<em>Completed</em>' : ''}
-                                ${a.status === 'cancelled' ? '<em>Cancelled</em>' : ''}
+                                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                    <a href="../dashboard/property_detail.php?id=${a.property_id}" class="button-small" style="background:#4a5568; color:white; padding:0.6rem 1rem; border-radius:50px; text-decoration:none; font-size:0.9rem;">View Details</a>
+
+                                    <?php if ($role !== 'client'): ?>
+                                        ${a.status === 'pending' ? `
+                                            <button onclick="handleAppointmentAction(${a.id}, 'accept')" class="button-small" style="background:#10b981; color:white; padding:0.6rem 1rem; border-radius:50px; border:none; cursor:pointer; font-size:0.9rem;">Confirm</button>
+                                            <button onclick="handleAppointmentAction(${a.id}, 'reject')" class="button-small" style="background:#ef4444; color:white; padding:0.6rem 1rem; border-radius:50px; border:none; cursor:pointer; font-size:0.9rem;">Reject</button>
+                                        ` : ''}
+                                        ${a.status === 'confirmed' ? `
+                                            <button onclick="handleAppointmentAction(${a.id}, 'reject')" class="button-small" style="background:#ef4444; color:white; padding:0.6rem 1rem; border-radius:50px; border:none; cursor:pointer; font-size:0.9rem;">Cancel</button>
+                                            <a href="https://wa.me/${phone}?text=Hi!%20Just%20confirming%20our%20appointment%20for%20${encodeURIComponent(a.property_title)}%20on%20${encodeURIComponent(formatted)}"
+                                               target="_blank" class="whatsapp-reminder">
+                                                <img src="../assets/img/whatsapp-white.png" style="width: 18px;"> Remind on WhatsApp
+                                            </a>
+                                        ` : ''}
+                                    <?php else: ?>
+                                        ${a.status === 'confirmed' ? `
+                                            <a href="https://wa.me/${phone}?text=Hi!%20Just%20confirming%20our%20appointment%20for%20${encodeURIComponent(a.property_title)}%20on%20${encodeURIComponent(formatted)}"
+                                               target="_blank" class="whatsapp-reminder">
+                                                <img src="../assets/img/whatsapp-white.png" style="width: 18px;"> Remind on WhatsApp
+                                            </a>
+                                        ` : ''}
+                                    <?php endif; ?>
+                                    ${a.status === 'completed' ? '<em style="color:#64748b;">Completed</em>' : ''}
+                                    ${a.status === 'cancelled' || a.status === 'rejected' ? '<em style="color:#64748b;">' + a.status.charAt(0).toUpperCase() + a.status.slice(1) + '</em>' : ''}
+                                </div>
                             </td>
                         </tr>`;
                     });
@@ -131,6 +150,33 @@ $role = $user['role'];
             } catch (err) {
                 document.getElementById('appointmentsBody').innerHTML = 
                     `<tr><td colspan="5" style="text-align:center; padding:4rem; color:#ef4444;">Error loading appointments</td></tr>`;
+            }
+        }
+
+        async function handleAppointmentAction(appointmentId, action) {
+            if (!confirm(`Are you sure you want to ${action} this appointment?`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch('../api/update_appointment.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id: appointmentId, action: action })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    alert(`Appointment ${action}ed successfully!`);
+                    loadAppointments(); // Reload appointments to reflect changes
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (err) {
+                console.error('Error handling appointment action:', err);
+                alert('An error occurred while processing your request.');
             }
         }
 

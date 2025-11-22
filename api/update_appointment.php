@@ -1,14 +1,11 @@
 <?php
-// api/update_appointment.php
-// Allows Agent/Admin to Accept, Reschedule, or Reject an appointment
-
+// api/update_appointment.php - FINAL + DYNAMIC LUXURY LOGS + ZERO HARDCODING
 require '../inc/config.php';
 require '../inc/auth.php';
 require '../inc/send_email.php';
 
 header('Content-Type: application/json');
 
-// Only agents & admins can update appointments
 if (!in_array($_SESSION['user']['role'], ['agent', 'admin'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -32,18 +29,21 @@ if ($appointment_id <= 0) {
     exit;
 }
 
-// Fetch appointment + client + property details
+// Fetch appointment with FULL real data for RICH LOGGING
 $stmt = $db->prepare("
-    SELECT a.*, p.title as property_title, u.name as client_name, u.email as client_email
+    SELECT a.*, 
+           p.title AS property_title, 
+           p.location AS property_location,
+           u.name AS client_name, 
+           u.email AS client_email
     FROM appointments a
     LEFT JOIN properties p ON a.property_id = p.id
-    LEFT JOIN users u ON a.client_id = u.id
+    LEFT JOIN users u ON a.user_id = u.id  -- assuming user_id = client
     WHERE a.id = ?
 ");
 $stmt->bind_param('i', $appointment_id);
 $stmt->execute();
-$result = $stmt->get_result();
-$appt = $result->fetch_assoc();
+$appt = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$appt) {
@@ -51,29 +51,41 @@ if (!$appt) {
     exit;
 }
 
-// Prevent double actions
 if ($appt['status'] !== 'pending') {
     echo json_encode(['success' => false, 'message' => 'This appointment has already been processed']);
     exit;
 }
 
+// Build property string
+$property_full = $appt['property_title'] 
+    ? $appt['property_title'] . " in " . ucwords(str_replace(['-', '_'], ' ', $appt['property_location']))
+    : "Property Viewing";
+
+// Original date/time for logging
+$original_date = date('l, j F Y \a\t g:i A', strtotime($appt['viewing_date'] . ' ' . $appt['viewing_time']));
+
 $updateFields = [];
 $params = [];
 $types = 'i';
 
+$log_message = "";  // We'll build this dynamically
+
 switch ($action) {
     case 'accept':
         $updateFields[] = "status = 'confirmed'";
+        $agent_note = "Appointment confirmed for " . date('l, j F Y \a\t g:i A', strtotime($appt['viewing_date'] . ' ' . $appt['viewing_time']));
         $updateFields[] = "agent_notes = ?";
-        $params[] = "Appointment confirmed. See you on " . date('jS F, Y \a\t g:ia', strtotime($appt['appointment_date'] . ' ' . $appt['appointment_time']));
+        $params[] = $note ? "$note\n\n$agent_note" : $agent_note;
         $types .= 's';
+
+        $log_message = "Confirmed viewing appointment for {$appt['client_name']} – $property_full on " . date('j M Y \a\t g:i A', strtotime($appt['viewing_date'] . ' ' . $appt['viewing_time']));
 
         $emailSubject = "Your Viewing Appointment is CONFIRMED!";
         $emailBody = "
             <h2>Great News, {$appt['client_name']}! Your appointment is confirmed.</h2>
-            <p><strong>Property:</strong> {$appt['property_title']}</p>
-            <p><strong>Date & Time:</strong> " . date('l, jS F Y \a\t g:ia', strtotime($appt['appointment_date'] . ' ' . $appt['appointment_time'])) . "</p>
-            <p>We look forward to showing you this amazing property!</p>
+            <p><strong>Property:</strong> $property_full</p>
+            <p><strong>Date & Time:</strong> " . date('l, jS F Y \a\t g:i A', strtotime($appt['viewing_date'] . ' ' . $appt['viewing_time'])) . "</p>
+            <p>We look forward to showing you this masterpiece!</p>
             <p>Warm regards,<br><strong>{$_SESSION['user']['name']}</strong><br>House Unlimited Agent</p>
         ";
         break;
@@ -83,25 +95,30 @@ switch ($action) {
             echo json_encode(['success' => false, 'message' => 'New date and time required']);
             exit;
         }
-        $updateFields[] = "appointment_date = ?";
-        $updateFields[] = "appointment_time = ?";
+
+        $new_datetime = "$new_date $new_time";
+        $formatted_new = date('l, j F Y \a\t g:i A', strtotime($new_datetime));
+
+        $updateFields[] = "viewing_date = ?";
+        $updateFields[] = "viewing_time = ?";
         $updateFields[] = "status = 'rescheduled'";
         $updateFields[] = "agent_notes = ?";
         $params[] = $new_date;
         $params[] = $new_time;
-        $params[] = $note ?: "Appointment rescheduled to " . date('jS F \a\t g:ia', strtotime("$new_date $new_time"));
+        $params[] = $note ?: "Rescheduled from $original_date to $formatted_new";
         $types .= 'sss';
+
+        $log_message = "Rescheduled viewing for {$appt['client_name']} – $property_full from $original_date → $formatted_new";
 
         $emailSubject = "Your Appointment Has Been Rescheduled";
         $emailBody = "
             <h2>Hi {$appt['client_name']},</h2>
-            <p>Your viewing appointment for <strong>{$appt['property_title']}</strong> has been rescheduled.</p>
-            <p><strong>New Date & Time:</strong> " . date('l, jS F Y \a\t g:ia', strtotime("$new_date $new_time")) . "</p>
-            <p><strong>Agent Note:</strong> " . ($note ?: "No additional note") . "</p>
-            <p>Let us know if this works for you!</p>
-            <p>Best regards,<br><strong>{$_SESSION['user']['name']}</strong></p>
+            <p>Your viewing for <strong>$property_full</strong> has been rescheduled.</p>
+            <p><strong>New Date & Time:</strong> $formatted_new</p>
+            <p><strong>Reason/Note:</strong> " . ($note ?: "Agent requested a better time") . "</p>
+            <p>Looking forward to hosting you!</p>
+            <p>Best,<br><strong>{$_SESSION['user']['name']}</strong></p>
         ";
-        log_activity("Rescheduled viewing to Saturday 10:00 AM");
         break;
 
     case 'reject':
@@ -110,13 +127,15 @@ switch ($action) {
         $params[] = $note ?: "Appointment declined by agent.";
         $types .= 's';
 
+        $log_message = "Rejected viewing request from {$appt['client_name']} for $property_full (originally $original_date)";
+
         $emailSubject = "Update: Your Appointment Request";
         $emailBody = "
             <h2>Hi {$appt['client_name']},</h2>
-            <p>Unfortunately, we are unable to accommodate your requested viewing time for <strong>{$appt['property_title']}</strong>.</p>
-            <p><strong>Reason:</strong> " . ($note ?: "No reason provided") . "</p>
-            <p>Please feel free to book another slot that works better.</p>
-            <p>We're here to help!<br><strong>{$_SESSION['user']['name']}</strong></p>
+            <p>We're sorry — we're unable to accommodate your requested time for <strong>$property_full</strong>.</p>
+            <p><strong>Reason:</strong> " . ($note ?: "No slots available at requested time") . "</p>
+            <p>Please book another time that works better. We're excited to show you the property!</p>
+            <p>Warm regards,<br><strong>{$_SESSION['user']['name']}</strong></p>
         ";
         break;
 
@@ -134,23 +153,22 @@ $stmt = $db->prepare($sql);
 $stmt->bind_param($types, ...$params);
 
 if ($stmt->execute()) {
-    // Send email notification
-    send_email($appt['client_email'], $emailSubject, $emailBody);
+    // SEND EMAIL
+    if (!empty($appt['client_email'])) {
+        send_email($appt['client_email'], $emailSubject, $emailBody);
+    }
 
-    // Log activity
-    $log_action = $action === 'accept' ? 'confirmed' : $action . ' appointment';
-    $log_stmt = $db->prepare("INSERT INTO activity_log (user_id, action, appointment_id) VALUES (?, ?, ?)");
-    $log_stmt->bind_param('isi', $_SESSION['user']['id'], $log_action, $appointment_id);
-    $log_stmt->execute();
+    // DYNAMIC, RICH, PROFESSIONAL LOG — NO HARDCODING
+    log_activity($log_message);
 
     echo json_encode([
         'success' => true,
-        'message' => ucfirst($action) . ' successful',
-        'new_status' => $action === 'reschedule' ? 'rescheduled' : ($action === 'accept' ? 'confirmed' : 'rejected')
+        'message' => ucfirst($action === 'reschedule' ? 'rescheduled' : $action) . ' successfully',
+        'new_status' => $action === 'accept' ? 'confirmed' : ($action === 'reschedule' ? 'rescheduled' : 'rejected')
     ]);
 } else {
     error_log("Appointment update failed: " . $stmt->error);
-    echo json_encode(['success' => false, 'message' => 'Database error. Try again.']);
+    echo json_encode(['success' => false, 'message' => 'Update failed. Please try again.']);
 }
 
 $stmt->close();

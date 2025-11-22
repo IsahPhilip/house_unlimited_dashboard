@@ -25,7 +25,7 @@ SELECT
     ) AS is_fully_paid
 FROM properties p
 JOIN transactions t ON p.id = t.property_id 
-    AND t.client_id = ? 
+    AND t.user_id = ? 
     AND t.status = 'success'
     AND JSON_EXTRACT(t.metadata, '$.type') = '\"property_purchase\"'
 LEFT JOIN property_progress pr ON p.id = pr.property_id

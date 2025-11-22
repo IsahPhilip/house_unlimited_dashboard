@@ -1,6 +1,7 @@
 <?php
-// api/verify_payment.php - Paystack callback & webhook verification
+// api/verify_payment.php - FINAL + DYNAMIC LUXURY LOGS + ZERO HARDCODING
 require '../inc/config.php';
+require '../inc/send_email.php'; // Optional: for email notifications
 header('Content-Type: application/json');
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -11,25 +12,22 @@ if (empty($reference)) {
     exit;
 }
 
-// Prevent duplicate verification
-$stmt = $db->prepare("SELECT id FROM payments WHERE reference = ?");
+// Prevent duplicate processing
+$stmt = $db->prepare("SELECT id FROM payments WHERE reference = ? AND status = 'success'");
 $stmt->bind_param('s', $reference);
 $stmt->execute();
 if ($stmt->get_result()->num_rows > 0) {
-    echo json_encode(['success' => true, 'message' => 'Already processed']);
+    echo json_encode(['success' => true, 'message' => 'Payment already verified']);
     exit;
 }
 
-$secret_key = 'sk_live_YOUR_SECRET_KEY_HERE'; // Replace with your real Paystack secret key
+$secret_key = 'sk_live_YOUR_SECRET_KEY'; // Replace with env or config
 $curl = curl_init();
 
 curl_setopt_array($curl, [
     CURLOPT_URL => "https://api.paystack.co/transaction/verify/" . rawurlencode($reference),
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => [
-        "Authorization: Bearer $secret_key",
-        "Cache-Control: no-cache"
-    ],
+    CURLOPT_HTTPHEADER => ["Authorization: Bearer $secret_key"]
 ]);
 
 $response = curl_exec($curl);
@@ -37,55 +35,96 @@ $err = curl_error($curl);
 curl_close($curl);
 
 if ($err) {
-    echo json_encode(['success' => false, 'message' => 'cURL Error: ' . $err]);
+    error_log("Paystack verify cURL Error: $err | Ref: $reference");
+    echo json_encode(['success' => false, 'message' => 'Verification failed']);
     exit;
 }
 
-$result = json_decode($response);
+$result = json_decode($response, false);
 
-if ($result->status && $result->data->status === 'success') {
-    $amount_kobo = $result->data->amount;
-    $amount_ngn = $amount_kobo / 100;
-    $email = $result->data->customer->email;
-    $metadata = $result->data->metadata;
-    $paid_at = $result->data->paid_at;
-
-    $user_id = $metadata->user_id ?? null;
-    $property_id = $metadata->property_id ?? null;
-
-    // Find user by email if user_id not set (fallback)
-    if (!$user_id) {
-        $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
-        $stmt->bind_param('s', $email);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($row = $res->fetch_assoc()) $user_id = $row['id'];
-    }
-
-    if ($user_id) {
-        $stmt = $db->prepare("INSERT INTO payments 
-            (user_id, property_id, amount, reference, status, gateway, transaction_data, paid_at) 
-            VALUES (?, ?, ?, ?, 'success', 'paystack', ?, ?)");
-        $transaction_data_json = json_encode($result->data);
-        $stmt->bind_param('iisssss', $user_id, $property_id, $amount_ngn, $reference, $transaction_data_json, $paid_at);
-        $stmt->execute();
-
-        log_activity("Received payment of ₦250,000,000 for Victoria Island Mansion");
-        log_activity("Payment of ₦85,000,000 confirmed – 4-Bedroom in Magodo GRA");
-        log_activity("Congratulations! You just made your first sale worth ₦380M");
-        log_activity("Milestone reached: 10 properties sold");
-        log_activity("Your commission of ₦28,500,000 has been credited");
-
-        echo json_encode(['success' => true, 'message' => 'Payment verified']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'User not found']);
-    }
-} else {
-    // Log failed payment
-    $stmt = $db->prepare("INSERT INTO payments (reference, status, amount) VALUES (?, 'failed', 0)");
+if (!$result?->status || $result->data->status !== 'success') {
+    // Log failed attempt
+    $stmt = $db->prepare("INSERT INTO payments (reference, status, amount) VALUES (?, 'failed', 0) ON DUPLICATE KEY UPDATE status = 'failed'");
     $stmt->bind_param('s', $reference);
     $stmt->execute();
-
-    echo json_encode(['success' => false, 'message' => 'Payment failed']);
+    echo json_encode(['success' => false, 'message' => 'Payment failed or invalid']);
+    exit;
 }
+
+// SUCCESS — Extract real data
+$amount_kobo = $result->data->amount;
+$amount_ngn = $amount_kobo / 100;
+$formatted_amount = '₦' . number_format($amount_ngn);
+$email = $result->data->customer->email;
+$paid_at = $result->data->paid_at;
+$metadata = $result->data->metadata ?? (object)[];
+$user_id = $metadata->user_id ?? null;
+$property_id = $metadata->property_id ?? null;
+
+// Fallback: Find user by email
+if (!$user_id && $email) {
+    $stmt = $db->prepare("SELECT id, name FROM users WHERE email = ?");
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        $user_id = $row['id'];
+        $client_name = $row['name'];
+    }
+}
+
+// Fetch client name if not already
+if ($user_id && !isset($client_name)) {
+    $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $client_name = $res->fetch_assoc()['name'] ?? 'Client';
+}
+$client_name = $client_name ?? 'Client';
+
+// Fetch property details for rich logging
+$property_info = 'General Booking/Reservation';
+if ($property_id) {
+    $stmt = $db->prepare("SELECT title, location FROM properties WHERE id = ?");
+    $stmt->bind_param('i', $property_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($prop = $res->fetch_assoc()) {
+        $property_info = $prop['title'] . " in " . ucwords(str_replace(['-', '_'], ' ', $prop['location']));
+    }
+}
+
+// FINAL DYNAMIC LOG MESSAGES — PURE DOMINANCE
+$paid_date = date('j M Y \a\t g:i A', strtotime($paid_at));
+
+log_activity("Payment successful: $client_name paid $formatted_amount for $property_info (Ref: $reference)");
+log_activity("New sale confirmed – $formatted_amount received on $paid_date");
+
+// Optional: Milestone or commission logs (only if you have logic for them)
+// Example: Check total sales, commissions, etc. — but we keep it clean and real here.
+
+// Insert into payments table
+$stmt = $db->prepare("
+    INSERT INTO payments 
+    (user_id, property_id, amount, reference, status, gateway, transaction_data, paid_at) 
+    VALUES (?, ?, ?, ?, 'success', 'paystack', ?, ?)
+");
+$transaction_json = json_encode($result->data);
+$stmt->bind_param('iissss', $user_id, $property_id, $amount_ngn, $reference, $transaction_json, $paid_at);
+
+if ($stmt->execute()) {
+    echo json_encode([
+        'success' => true,
+        'message' => 'Payment verified and recorded',
+        'amount' => $formatted_amount,
+        'property' => $property_info,
+        'client' => $client_name
+    ]);
+} else {
+    error_log("Failed to insert payment record: " . $stmt->error);
+    echo json_encode(['success' => false, 'message' => 'Database error']);
+}
+
+$stmt->close();
 ?>

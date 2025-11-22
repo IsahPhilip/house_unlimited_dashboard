@@ -37,6 +37,7 @@ if ($_POST['action'] ?? '' && $_POST['property_id'] ?? 0) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin • All Properties • House Unlimited</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         .admin-header {
@@ -220,17 +221,22 @@ if ($_POST['action'] ?? '' && $_POST['property_id'] ?? 0) {
                         <td><span class="status ${p.status}">${p.status.toUpperCase()}</span></td>
                         <td>${date}</td>
                         <td>
-                            <a href="../dashboard/property_detail.php?id=${p.id}" target="_blank" class="action-btn btn-view">View</a>
+                            <a href="../dashboard/property_detail.php?id=${p.id}" target="_blank" class="action-btn btn-view"><i class="fas fa-eye"></i></a>
                             ${p.status === 'pending' ? `
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="property_id" value="${p.id}">
-                                <button type="submit" name="action" value="approve" class="action-btn btn-approve">Approve</button>
-                                <button type="submit" name="action" value="reject" class="action-btn btn-reject">Reject</button>
+                                <button type="submit" name="action" value="approve" class="action-btn btn-approve"><i class="fas fa-check-circle"></i></button>
+                                <button type="submit" name="action" value="reject" class="action-btn btn-reject"><i class="fas fa-times-circle"></i></button>
                             </form>` : ''}
                             <form method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this property?')">
                                 <input type="hidden" name="property_id" value="${p.id}">
-                                <button type="submit" name="action" value="delete" class="action-btn btn-delete">Delete</button>
+                                <button type="submit" name="action" value="delete" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>
                             </form>
+                            ${p.featured == 0 ? `
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="property_id" value="${p.id}">
+                                <button type="submit" name="action" value="feature" class="action-btn btn-approve"><i class="fas fa-star"></i></button>
+                            </form>` : ''}
                         </td>
                     </tr>`;
                 });
